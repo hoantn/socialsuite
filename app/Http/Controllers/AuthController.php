@@ -1,17 +1,9 @@
 <?php
-
 namespace App\Http\Controllers;
-
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
-
-/**
- * [SOCIALSUITE][GPT][2025-10-18 10:33 +07] Simplified Auth:
- * - Register: username + password bắt buộc; name/email/phone tuỳ chọn
- * - Login: cho phép username / email / phone
- */
 class AuthController extends Controller
 {
     public function register(Request $r)
@@ -23,7 +15,6 @@ class AuthController extends Controller
             'email'    => 'nullable|email',
             'phone'    => 'nullable|string|max:32',
         ]);
-
         $u = User::create([
             'name'     => $d['name']     ?? null,
             'username' => $d['username'],
@@ -31,33 +22,21 @@ class AuthController extends Controller
             'phone'    => $d['phone']    ?? null,
             'password' => Hash::make($d['password']),
         ]);
-
         Auth::login($u);
-        return response()->json(['message' => 'registered', 'user' => $u]);
+        return redirect()->route('me');
     }
-
     public function login(Request $r)
     {
-        $d = $r->validate([
-            'login'    => 'required|string',
-            'password' => 'required|string',
-        ]);
-
-        $login = $d['login'];
-        $field = 'username';
-        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
-            $field = 'email';
-        } elseif (preg_match('/^\+?\d{6,15}$/', $login)) {
-            $field = 'phone';
-        }
-
+        $d = $r->validate([ 'login' => 'required|string', 'password' => 'required|string' ]);
+        $login = $d['login']; $field = 'username';
+        if (filter_var($login, FILTER_VALIDATE_EMAIL)) { $field = 'email'; }
+        elseif (preg_match('/^\+?\d{6,15}$/', $login)) { $field = 'phone'; }
         if (!Auth::attempt([$field => $login, 'password' => $d['password']], true)) {
             return back()->withErrors(['login' => 'Thông tin đăng nhập không đúng.']);
         }
         $r->session()->regenerate();
-        return redirect()->intended('/');
+        return redirect()->route('me');
     }
-
     public function logout(Request $r)
     {
         Auth::logout();
