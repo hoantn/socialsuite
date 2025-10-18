@@ -1,13 +1,11 @@
 <?php
 namespace App\Models;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
-class FacebookPage extends Model
-{
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+class FacebookPage extends Model {
     use HasFactory;
-    protected $fillable = ['fb_user_id','page_id','name','access_token'];
-    public function posts()
-    {
-        return $this->hasMany(Post::class);
-    }
+    protected $fillable=['page_id','name','picture_url','category'];
+    public function memberships(){ return $this->hasMany(PageMembership::class); }
+    public function posts(){ return $this->hasMany(Post::class,'facebook_page_id'); }
+    public function getRouteKeyName(){ return 'id'; }
 }
