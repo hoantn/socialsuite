@@ -1,30 +1,13 @@
 <?php
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\AuthController;
-use App\Http\Controllers\DashboardController;
-use App\Http\Controllers\FacebookController;
-use App\Http\Controllers\PostController;
-use App\Http\Controllers\BillingController;
-Route::get('/', [DashboardController::class, 'welcome'])->name('welcome');
-Route::get('/login', [AuthController::class, 'showLogin'])->name('login');
-Route::post('/login', [AuthController::class, 'login']);
-Route::get('/logout', [AuthController::class, 'logout'])->name('logout');
-Route::get('/register', [AuthController::class, 'showRegister'])->name('register');
-Route::post('/register', [AuthController::class, 'register']);
-Route::middleware('auth')->group(function () {
-    Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
-    Route::get('/auth/facebook/redirect', [FacebookController::class, 'redirect'])->name('fb.redirect');
-    Route::get('/auth/facebook/callback', [FacebookController::class, 'callback'])->name('fb.callback');
-    Route::get('/facebook/pages', [FacebookController::class, 'pages'])->name('fb.pages');
-    Route::post('/facebook/pages/select', [FacebookController::class, 'selectPage'])->name('fb.pages.select');
-    Route::get('/posts', [PostController::class, 'index'])->name('posts.index');
-    Route::get('/posts/create', [PostController::class, 'create'])->name('posts.create');
-    Route::post('/posts', [PostController::class, 'store'])->name('posts.store');
-    Route::get('/posts/scheduled', [PostController::class, 'scheduled'])->name('posts.scheduled');
-    Route::delete('/posts/{postId}', [PostController::class, 'destroy'])->name('posts.destroy');
-    Route::get('/billing/topup', [BillingController::class, 'topupForm'])->name('billing.topup');
-    Route::post('/billing/topup', [BillingController::class, 'createTopup'])->name('billing.topup.create');
-    Route::get('/billing/history', [BillingController::class, 'history'])->name('billing.history');
-    Route::get('/plans', [BillingController::class, 'plans'])->name('plans');
-    Route::post('/plans/upgrade', [BillingController::class, 'upgrade'])->name('plans.upgrade');
-});
+use App\Http\Controllers\FacebookAuthController;
+
+Route::get('/', fn() => response('SocialSuite Rebuild Starter'));
+
+Route::post('/register', [AuthController::class, 'register'])->name('register');
+Route::post('/login',    [AuthController::class, 'login'])->name('login');
+Route::post('/logout',   [AuthController::class, 'logout'])->name('logout');
+
+Route::get('/auth/facebook/login',    [FacebookAuthController::class, 'login'])->name('fb.login');
+Route::get('/auth/facebook/callback', [FacebookAuthController::class, 'callback'])->name('fb.callback');

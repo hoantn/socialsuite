@@ -4,30 +4,38 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
-class AuthController extends Controller
-{
-    public function showLogin() { return view('auth.login'); }
-    public function showRegister() { return view('auth.register'); }
-    public function login(Request $r){
-        $cred = $r->validate(['username'=>'required','password'=>'required']);
-        if (Auth::attempt($cred, $r->boolean('remember'))) {
-            $r->session()->regenerate(); return redirect()->intended('/dashboard');
-        }
-        return back()->withErrors(['username'=>'Sai thông tin đăng nhập'])->onlyInput('username');
-    }
-    public function register(Request $r){
-        $data = $r->validate([
-            'username'=>'required|min:3|max:50|unique:users,username',
-            'password'=>'required|min:6|max:100',
-            'email'=>'nullable|email|max:100','phone'=>'nullable|max:30'
+
+/** [SOCIALSUITE][GPT][2025-10-18 09:18 +07] Username-based Auth */
+class AuthController extends Controller {
+    public function register(Request $r) {
+        $d = $r->validate([
+            'username'=>'required|string|min:3|max:30|alpha_dash|unique:users,username',
+            'email'=>'required|email|unique:users,email',
+            'password'=>'required|string|min:6|confirmed',
+            'name'=>'nullable|string|max:100',
         ]);
-        $u = new User();
-        $u->username=$data['username']; $u->password=Hash::make($data['password']);
-        $u->email=$data['email']??null; $u->phone=$data['phone']??null;
-        $u->is_admin=false; $u->plan_id=1; $u->save();
-        Auth::login($u); return redirect('/dashboard');
+        $u = User::create([
+            'name'=>$d['name']??null,
+            'username'=>$d['username'],
+            'email'=>$d['email'],
+            'password'=>Hash::make($d['password']),
+        ]);
+        Auth::login($u);
+        return response()->json(['message'=>'registered','user'=>$u]);
     }
-    public function logout(Request $r){
-        Auth::logout(); $r->session()->invalidate(); $r->session()->regenerateToken(); return redirect('/');
+    public function login(Request $r) {
+        $d = $r->validate(['login'=>'required|string','password'=>'required|string']);
+        $field = filter_var($d['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
+        if (Auth::attempt([$field=>$d['login'],'password'=>$d['password']], true)) {
+            $r->session()->regenerate();
+            return response()->json(['message'=>'logged_in','user'=>Auth::user()]);
+        }
+        return response()->json(['message'=>'invalid_credentials'], 401);
+    }
+    public function logout(Request $r) {
+        Auth::logout();
+        $r->session()->invalidate();
+        $r->session()->regenerateToken();
+        return response()->json(['message'=>'logged_out']);
     }
 }
