@@ -26,3 +26,4 @@ Route::get('/auth/facebook/callback', [FacebookAuthController::class, 'callback'
 if (file_exists(__DIR__ . '/debug_routes.php')) {
     require __DIR__ . '/debug_routes.php';
 }
+require __DIR__.'/pages_posts.php';

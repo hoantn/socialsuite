@@ -42,3 +42,11 @@ Kiểm tra:
 
 php scripts/test_graph_with_db_token.php
 # HTTP: 200  + BODY có {"id":"...","name":"..."} là OK
+-------------------
+
+Chạy scheduler (dev):
+
+php artisan schedule:work
+
+
+(Hoặc cron: * * * * * php /path/to/artisan schedule:run >> /dev/null 2>&1)
