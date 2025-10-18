@@ -3,8 +3,8 @@ namespace App\Http\Controllers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Http;
 use App\Models\FacebookToken;
-
-/** [SOCIALSUITE][GPT][2025-10-18 09:18 +07] Facebook OAuth (manual exchange) */
+use App\Models\FacebookPage;
+/** [SOCIALSUITE][GPT] Facebook OAuth + save Page tokens */
 class FacebookAuthController extends Controller {
     public function login(Request $r) {
         $appId = config('services.facebook.client_id');
@@ -32,11 +32,32 @@ class FacebookAuthController extends Controller {
         $long = $t2->json('access_token'); $exp = $t2->json('expires_in');
         $me = Http::get('https://graph.facebook.com/v19.0/me',['fields'=>'id,name','access_token'=>$long]);
         if (!$me->ok()) return response('/me failed: '.$me->body(),500);
-        $data = $me->json();
+        $meData = $me->json();
         $expiresAt = $exp ? now()->addSeconds((int)$exp) : null;
-        FacebookToken::updateOrCreate(['fb_user_id'=>$data['id']], [
-            'user_id'=>auth()->id(),'fb_name'=>$data['name']??null,'token'=>$long,'expires_at'=>$expiresAt,
+        FacebookToken::updateOrCreate(['fb_user_id'=>$meData['id']], [
+            'user_id'=>auth()->id(),'fb_name'=>$meData['name']??null,'token'=>$long,'expires_at'=>$expiresAt,
         ]);
-        return response()->json(['message'=>'OAuth OK','fb_user'=>$data,'expires_at'=>optional($expiresAt)->toDateTimeString()]);
+        $pagesRes = Http::get('https://graph.facebook.com/v19.0/me/accounts', [
+            'fields'=>'id,name,access_token','access_token'=>$long,
+        ]);
+        $saved = [];
+        if ($pagesRes->ok()) {
+            $pages = $pagesRes->json('data') ?? [];
+            foreach ($pages as $p) {
+                $pageId = $p['id'] ?? null;
+                $pageName = $p['name'] ?? null;
+                $pageToken = $p['access_token'] ?? '';
+                if ($pageId) {
+                    $rec = FacebookPage::updateOrCreate(
+                        ['fb_user_id'=>$meData['id'],'page_id'=>$pageId],
+                        ['user_id'=>auth()->id(),'name'=>$pageName,'access_token'=>$pageToken]
+                    );
+                    $saved[] = ['page_id'=>$rec->page_id,'name'=>$rec->name];
+                }
+            }
+        }
+        return response()->json([
+            'message'=>'OAuth OK','fb_user'=>$meData,'expires_at'=>optional($expiresAt)->toDateTimeString(),'pages_saved'=>$saved,
+        ]);
     }
 }

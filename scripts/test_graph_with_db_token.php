@@ -10,4 +10,10 @@ $url = 'https://graph.facebook.com/v19.0/me?fields=id,name&access_token=' . urle
 $ch = curl_init($url);
 curl_setopt_array($ch,[CURLOPT_RETURNTRANSFER=>true,CURLOPT_TIMEOUT=>20]);
 $out=curl_exec($ch);$err=curl_error($ch);$info=curl_getinfo($ch);curl_close($ch);
-echo "HTTP: ".($info['http_code']??0)."\nCURL ERROR: ".($err or '(none)')."\nBODY: ".$out."\n";
+$errno = curl_errno($ch);
+
+echo "HTTP: " . ($info['http_code'] ?? 0) . PHP_EOL;
+echo "CURL ERRNO: " . $errno . PHP_EOL;
+echo "CURL ERROR: " . ($err !== '' ? $err : '(none)') . PHP_EOL;
+echo "BODY: " . $out . PHP_EOL;
+

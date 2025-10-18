@@ -1,0 +1,44 @@
+Cách dựng lại (từ số 0)
+
+Tạo project Laravel mới:
+
+composer create-project laravel/laravel socialsuite
+cd socialsuite
+composer require facebook/graph-sdk
+
+
+Giải nén file ZIP vào root dự án (merge thư mục).
+
+Thêm vào .env:
+
+APP_URL=https://localhost
+
+FB_APP_ID=your_app_id
+FB_APP_SECRET=your_app_secret
+FB_REDIRECT_URI=https://localhost/socialsuite/public/auth/facebook/callback
+
+SOCIALSUITE_FEATURE_SSL_CA=true
+SOCIALSUITE_SSL_CA_PATH=certs/cacert.pem
+
+
+DB sạch → chạy migration:
+
+php artisan migrate
+
+
+Test Auth:
+
+Đăng ký: POST /register (body: username, email, password, password_confirmation, name?)
+
+Đăng nhập: POST /login (body: login = username hoặc email, password)
+
+Đăng xuất: POST /logout
+
+Test Facebook (real app):
+
+Mở: GET /auth/facebook/login → cấp quyền → callback sẽ lưu long-lived user token vào facebook_tokens.
+
+Kiểm tra:
+
+php scripts/test_graph_with_db_token.php
+# HTTP: 200  + BODY có {"id":"...","name":"..."} là OK

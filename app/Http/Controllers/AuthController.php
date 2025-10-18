@@ -1,41 +1,68 @@
 <?php
+
 namespace App\Http\Controllers;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
 
-/** [SOCIALSUITE][GPT][2025-10-18 09:18 +07] Username-based Auth */
-class AuthController extends Controller {
-    public function register(Request $r) {
+/**
+ * [SOCIALSUITE][GPT][2025-10-18 10:33 +07] Simplified Auth:
+ * - Register: username + password bắt buộc; name/email/phone tuỳ chọn
+ * - Login: cho phép username / email / phone
+ */
+class AuthController extends Controller
+{
+    public function register(Request $r)
+    {
         $d = $r->validate([
-            'username'=>'required|string|min:3|max:30|alpha_dash|unique:users,username',
-            'email'=>'required|email|unique:users,email',
-            'password'=>'required|string|min:6|confirmed',
-            'name'=>'nullable|string|max:100',
+            'username' => 'required|string|min:3|max:30|alpha_dash|unique:users,username',
+            'password' => 'required|string|min:6|confirmed',
+            'name'     => 'nullable|string|max:100',
+            'email'    => 'nullable|email',
+            'phone'    => 'nullable|string|max:32',
         ]);
+
         $u = User::create([
-            'name'=>$d['name']??null,
-            'username'=>$d['username'],
-            'email'=>$d['email'],
-            'password'=>Hash::make($d['password']),
+            'name'     => $d['name']     ?? null,
+            'username' => $d['username'],
+            'email'    => $d['email']    ?? null,
+            'phone'    => $d['phone']    ?? null,
+            'password' => Hash::make($d['password']),
         ]);
+
         Auth::login($u);
-        return response()->json(['message'=>'registered','user'=>$u]);
+        return response()->json(['message' => 'registered', 'user' => $u]);
     }
-    public function login(Request $r) {
-        $d = $r->validate(['login'=>'required|string','password'=>'required|string']);
-        $field = filter_var($d['login'], FILTER_VALIDATE_EMAIL) ? 'email' : 'username';
-        if (Auth::attempt([$field=>$d['login'],'password'=>$d['password']], true)) {
-            $r->session()->regenerate();
-            return response()->json(['message'=>'logged_in','user'=>Auth::user()]);
+
+    public function login(Request $r)
+    {
+        $d = $r->validate([
+            'login'    => 'required|string',
+            'password' => 'required|string',
+        ]);
+
+        $login = $d['login'];
+        $field = 'username';
+        if (filter_var($login, FILTER_VALIDATE_EMAIL)) {
+            $field = 'email';
+        } elseif (preg_match('/^\+?\d{6,15}$/', $login)) {
+            $field = 'phone';
         }
-        return response()->json(['message'=>'invalid_credentials'], 401);
+
+        if (!Auth::attempt([$field => $login, 'password' => $d['password']], true)) {
+            return back()->withErrors(['login' => 'Thông tin đăng nhập không đúng.']);
+        }
+        $r->session()->regenerate();
+        return redirect()->intended('/');
     }
-    public function logout(Request $r) {
+
+    public function logout(Request $r)
+    {
         Auth::logout();
         $r->session()->invalidate();
         $r->session()->regenerateToken();
-        return response()->json(['message'=>'logged_out']);
+        return redirect('/');
     }
 }
