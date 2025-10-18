@@ -27,3 +27,4 @@ if (file_exists(__DIR__ . '/debug_routes.php')) {
     require __DIR__ . '/debug_routes.php';
 }
 require __DIR__.'/pages_posts.php';
+require __DIR__.'/facebook_only.php';

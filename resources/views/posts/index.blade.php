@@ -17,8 +17,7 @@
           @if($post->image_url)<img src="{{ $post->image_url }}" class="mt-2 rounded-xl max-h-60 object-cover">@endif
           <div class="mt-3 flex gap-2">
             @if($post->status !== 'published')
-            <form method="POST" action="{{ route('pages.posts.publish', [$page,$post]) }}">
-              @csrf
+            <form method="POST" action="{{ route('pages.posts.publish', [$page,$post]) }}">@csrf
               <button class="px-3 py-1 rounded-xl border hover:border-brand hover:text-brand">Đăng ngay</button>
             </form>
             @endif
@@ -34,8 +33,7 @@
   <div class="md:col-span-1">
     <div class="p-4 border rounded-2xl">
       <div class="font-semibold">Tạo bài viết</div>
-      <form class="mt-3 space-y-3" method="POST" action="{{ route('pages.posts.store', $page) }}">
-        @csrf
+      <form class="mt-3 space-y-3" method="POST" action="{{ route('pages.posts.store', $page) }}">@csrf
         <div>
           <label class="text-sm">Loại</label>
           <select name="type" class="mt-1 w-full border rounded-xl p-2">
