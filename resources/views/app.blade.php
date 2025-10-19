@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="csrf-token" content="{{ csrf_token() }}">
   <title inertia>SocialSuite · Facebook Messaging SaaS</title>
   <meta name="description" content="SocialSuite - chatbot Facebook, inbox hợp nhất, broadcast và automation.">
   <meta property="og:title" content="SocialSuite · Facebook Messaging SaaS" />

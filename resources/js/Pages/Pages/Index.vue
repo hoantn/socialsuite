@@ -29,11 +29,19 @@ function submit(){ form.post('/pages') }
             <div class="flex items-center gap-3">
               <span class="badge">{{ p.channel }}</span>
               <span class="font-medium">{{ p.name }}</span>
-              <span class="text-xs" v-if="p.subscribed">• Subscribed</span>
+              <span class="text-xs" :class="p.subscribed ? 'text-green-600' : 'text-slate-400'">
+                {{ p.subscribed ? 'Subscribed' : 'Not subscribed' }}
+              </span>
+              <span class="text-xs text-slate-500" v-if="p.token_expires_at"> · expires: {{ new Date(p.token_expires_at).toLocaleString() }}</span>
             </div>
-            <form :action="`/pages/${p.id}`" method="post">
-              <input type="hidden" name="_method" value="DELETE"><button class="text-red-600 hover:underline">Remove</button>
-            </form>
+            <div class="flex items-center gap-3">
+              <form :action="`/pages/${p.id}/refresh-token`" method="post"><button class="text-blue-600 hover:underline">Refresh token</button></form>
+              <form v-if="!p.subscribed" :action="`/pages/${p.id}/subscribe`" method="post"><button class="text-green-600 hover:underline">Subscribe</button></form>
+              <form v-else :action="`/pages/${p.id}/unsubscribe`" method="post"><button class="text-orange-600 hover:underline">Unsubscribe</button></form>
+              <form :action="`/pages/${p.id}`" method="post">
+                <input type="hidden" name="_method" value="DELETE"><button class="text-red-600 hover:underline">Remove</button>
+              </form>
+            </div>
           </li>
         </ul>
       </div>
