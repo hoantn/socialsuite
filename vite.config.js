@@ -1,4 +1,3 @@
-// vite.config.js
 import { defineConfig } from 'vite'
 import laravel from 'laravel-vite-plugin'
 import vue from '@vitejs/plugin-vue'
@@ -12,12 +11,11 @@ export default defineConfig({
     vue(),
   ],
   server: {
-    host: '127.0.0.1',     // hoặc '0.0.0.0' nếu cần truy cập từ LAN
+    host: 'mmo.homes',
     port: 5173,
-    strictPort: true,
     hmr: {
-      host: 'mmo.homes',   // TÊN MIỀN bạn đang mở trên trình duyệt
-      protocol: 'https',   // vì site của bạn đang chạy HTTPS
+      host: 'mmo.homes',
+      protocol: 'http',   // <-- http
       port: 5173,
     },
   },
