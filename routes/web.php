@@ -17,3 +17,10 @@ Route::prefix('api')->group(function () {
 });
 
 Route::match(['get','post'], '/webhooks/facebook', [WebhookController::class,'handle']);
+
+// Mock nhanh cho FE — trả về danh sách pages rỗng
+Route::get('/api/pages', function () {
+    return response()->json([
+        'data' => [], // FE sẽ thấy mảng rỗng và hết "Đang tải…"
+    ]);
+});
