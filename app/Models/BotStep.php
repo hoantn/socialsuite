@@ -1,0 +1,4 @@
+<?php
+namespace App\Models;
+use Illuminate\Database\Eloquent\Model;
+class BotStep extends Model { protected $fillable=['bot_flow_id','type','payload','next_step_id','keyword']; protected $casts=['payload'=>'array']; }

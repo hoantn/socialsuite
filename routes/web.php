@@ -2,20 +2,17 @@
 
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
-use App\Http\Controllers\PageController;
-use App\Http\Controllers\InboxController;
-use App\Http\Controllers\OAuthController;
-use App\Http\Controllers\WebhookController;
+use App\Http\Controllers\{PageController,InboxController,BroadcastController,FlowController,SettingsController,WebhookController};
 
-Route::get('/', function () {
-    return Inertia::render('Dashboard');
-});
-
+Route::get('/', fn () => Inertia::render('Dashboard'));
 Route::get('/pages', [PageController::class, 'index'])->name('pages.index');
+Route::post('/pages', [PageController::class, 'store'])->name('pages.store');
+Route::delete('/pages/{page}', [PageController::class, 'destroy'])->name('pages.destroy');
 Route::get('/inbox', [InboxController::class, 'index'])->name('inbox.index');
 Route::post('/inbox/send', [InboxController::class, 'send'])->name('inbox.send');
-
-Route::get('/auth/facebook/redirect', [OAuthController::class, 'redirect'])->name('facebook.redirect');
-Route::get('/auth/facebook/callback', [OAuthController::class, 'callback'])->name('facebook.callback');
-
+Route::get('/broadcasts', [BroadcastController::class, 'index'])->name('broadcasts.index');
+Route::post('/broadcasts', [BroadcastController::class, 'store'])->name('broadcasts.store');
+Route::get('/flows', [FlowController::class, 'index'])->name('flows.index');
+Route::post('/flows', [FlowController::class, 'store'])->name('flows.store');
+Route::get('/settings', [SettingsController::class, 'index'])->name('settings.index');
 Route::match(['get','post'], '/webhook/facebook', [WebhookController::class, 'handle'])->name('facebook.webhook');

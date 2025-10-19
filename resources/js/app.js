@@ -1,9 +1,9 @@
 import { createApp, h } from 'vue'
-import { createInertiaApp } from '@inertiajs/vue3'
-
+import { createInertiaApp, Link, Head } from '@inertiajs/vue3'
 createInertiaApp({
   resolve: name => import(/* @vite-ignore */ `./Pages/${name}.vue`),
   setup({ el, App, props, plugin }) {
-    createApp({ render: () => h(App, props) }).use(plugin).mount(el)
+    createApp({ render: () => h(App, props) })
+      .use(plugin).component('Link', Link).component('Head', Head).mount(el)
   },
 })
