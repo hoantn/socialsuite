@@ -1,0 +1,1 @@
+<template><div class='p-4'><h1 class='text-xl'>Inbox</h1><ul><li v-for='m in messages' :key='m.time'>{{ m.from }}: {{ m.text }}</li></ul></div></template><script setup>defineProps(['messages'])</script>

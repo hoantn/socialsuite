@@ -1,0 +1,1 @@
+<template><div class='p-4'><h1 class='text-xl'>Connected Pages</h1><ul><li v-for='p in pages' :key='p.id'>{{ p.name }}</li></ul></div></template><script setup>defineProps(['pages'])</script>
