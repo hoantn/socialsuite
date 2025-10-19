@@ -34,5 +34,9 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
-
+		'facebook' => [
+		'client_id' => env('META_APP_ID'),
+		'client_secret' => env('META_APP_SECRET'),
+		'redirect' => env('APP_URL').'/auth/facebook/callback',
+	],
 ];
