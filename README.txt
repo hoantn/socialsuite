@@ -1,26 +1,12 @@
-SocialSuite Patch (Logs + Debug) — v4a
+Hotfix v4d — Không lưu được Page sau khi "Nhập & Subscribe webhook"
 
-Mục tiêu
-- Hiển thị danh sách Page sau khi đăng nhập Facebook.
-- Ghi log chi tiết khi gọi Graph API để xác định nguyên nhân nếu /me/accounts trả rỗng hoặc lỗi.
-- Bổ sung scope: pages_read_engagement (một số case cần để trả đủ dữ liệu Page).
-- Thêm route debug /dev/fb/check để xem JSON từ Facebook ngay trên trình duyệt.
+Sửa gì:
+- Thêm fillable/casts cho model Page → cho phép mass assignment khi updateOrCreate.
+- Bổ sung LOG chi tiết trong importPages để thấy dữ liệu request + lỗi.
+- Đảm bảo luôn set user_id = 1 (tạm), nếu bạn có auth hãy đổi sang Auth::id().
 
-Áp dụng
-1) Giải nén toàn bộ và GHI ĐÈ lên dự án.
-2) Chạy: php artisan config:clear && php artisan route:clear
-3) Dev: npm run dev  (hoặc build: npm run build)
-4) Thu hồi quyền app, rồi login lại: /auth/facebook/redirect
-5) Nếu vẫn không thấy Page: mở /dev/fb/check và check file storage/logs/laravel.log
-
-ENV
-APP_URL=https://mmo.homes
-META_APP_ID=...
-META_APP_SECRET=...
-META_VERIFY_TOKEN=...
-META_GRAPH_VERSION=v18.0
-
-Files patched
-- app/Services/MetaGraph.php            (throw() + log-friendly)
-- app/Http/Controllers/OAuthController.php  (OAuth không dùng Socialite, thêm pages_read_engagement, log)
-- routes/web.php                         (thêm /dev/fb/check và giữ các route v4)
+Áp dụng:
+1) Giải nén và GHI ĐÈ.
+2) php artisan config:clear && php artisan route:clear
+3) Thực hiện lại thao tác "Nhập & Subscribe webhook".
+4) Nếu vẫn trống: mở storage/logs/laravel.log để xem các log tag: IMPORT_PAGES_REQUEST / IMPORT_PAGE_ROW.

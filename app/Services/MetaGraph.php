@@ -30,7 +30,7 @@ class MetaGraph {
     $v = $this->version();
     return Http::get("https://graph.facebook.com/$v/me/accounts", [
       'access_token' => $userToken,
-      'fields' => 'id,name,access_token,perms,category',
+      'fields' => 'id,name,access_token,category,tasks',
       'limit' => 100
     ])->throw()->json();
   }
@@ -48,20 +48,5 @@ class MetaGraph {
     return Http::withToken($pageToken)->post("https://graph.facebook.com/$v/me/subscribed_apps", [
       'subscribed_fields' => 'messages,messaging_postbacks,messaging_handovers,messaging_optins,message_deliveries,messaging_referrals,messaging_seen'
     ])->throw()->ok();
-  }
-
-  public function unsubscribeApp(string $pageToken): bool {
-    $v = $this->version();
-    return Http::withToken($pageToken)->delete("https://graph.facebook.com/$v/me/subscribed_apps")->throw()->ok();
-  }
-
-  public function sendMessage(string $pageToken, string $psid, array $message): array {
-    $v = $this->version();
-    $res = Http::asJson()->withToken($pageToken)->post("https://graph.facebook.com/$v/me/messages", [
-      'recipient' => ['id' => $psid],
-      'messaging_type' => 'RESPONSE',
-      'message' => $message
-    ])->throw();
-    return [$res->status(), $res->json()];
   }
 }
