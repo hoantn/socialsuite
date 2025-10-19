@@ -1,4 +1,2 @@
 <?php
-namespace App\Models;
-use Illuminate\Database\Eloquent\Model;
-class Campaign extends Model { protected $fillable=['page_id','name','content','status','scheduled_at']; protected $casts=['scheduled_at'=>'datetime']; }
+namespace App\Models; use Illuminate\Database\Eloquent\Model; class Campaign extends Model{protected $fillable=['page_id','name','content','status','scheduled_at']; protected $casts=['scheduled_at'=>'datetime'];}

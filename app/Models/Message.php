@@ -1,4 +1,2 @@
 <?php
-namespace App\Models;
-use Illuminate\Database\Eloquent\Model;
-class Message extends Model { public $timestamps=false; protected $fillable=['conversation_id','direction','text','sent_at']; }
+namespace App\Models; use Illuminate\Database\Eloquent\Model; class Message extends Model{public $timestamps=false; protected $fillable=['conversation_id','direction','text','sent_at'];}
