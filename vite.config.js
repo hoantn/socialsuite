@@ -1,23 +1,17 @@
-import { defineConfig } from 'vite';
-import vue from '@vitejs/plugin-vue';
-import path from 'path';
+import { defineConfig } from 'vite'
+import laravel from 'laravel-vite-plugin'
+import vue from '@vitejs/plugin-vue'
 
 export default defineConfig({
-  plugins: [vue()],
-  resolve: {
-    alias: {
-      '@': path.resolve(__dirname, 'resources/js'),
-    },
+  plugins: [
+    laravel({
+      input: ['resources/js/app.js', 'resources/css/app.css'],
+      refresh: true,
+    }),
+    vue(),
+  ],
+  build: {
+    sourcemap: false,
+    rollupOptions: {},
   },
-  server: {
-    host: true,
-    https: false,
-    cors: true,
-    hmr: {
-      protocol: 'ws',
-      host: process.env.VITE_HMR_HOST || 'localhost',
-      clientPort: Number(process.env.VITE_HMR_CLIENT_PORT || 5173),
-      port: Number(process.env.VITE_HMR_PORT || 5173),
-    },
-  },
-});
+})
