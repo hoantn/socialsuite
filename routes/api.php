@@ -1,12 +1,8 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Api\FacebookAuthController;
+use App\Http\Controllers\Api\FacebookController;
 
-Route::get('/health', fn() => response()->json(['ok'=>true]));
-Route::prefix('facebook')->group(function(){
-    Route::get('/oauth-url', [FacebookAuthController::class, 'oauthUrl']);
-    Route::get('/callback', [FacebookAuthController::class, 'callback']);
-});
-Route::get('/pages', [FacebookAuthController::class, 'listPages']);
-Route::post('/pages/{page}/subscribe', [FacebookAuthController::class, 'subscribeWebhook']);
+// These are left unauthenticated for local dev. Add middleware('auth') when ready.
+Route::get('/facebook/pages', [FacebookController::class, 'listPages']);
+Route::post('/facebook/subscribe', [FacebookController::class, 'subscribe']);

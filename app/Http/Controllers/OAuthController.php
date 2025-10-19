@@ -3,42 +3,39 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\SocialAccount;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Laravel\Socialite\Facades\Socialite;
+use Illuminate\Support\Facades\Http;
+use App\Models\FacebookUser;
 
 class OAuthController extends Controller
 {
     public function redirect()
     {
-        $scopes = ['email','pages_show_list','pages_manage_metadata','pages_messaging'];
-
         return Socialite::driver('facebook')
-            ->scopes($scopes)
+            ->scopes(['pages_show_list','pages_manage_metadata','pages_messaging','public_profile','email'])
             ->redirect();
     }
 
-    public function callback()
+    public function callback(Request $request)
     {
-        $fbUser = Socialite::driver('facebook')->user();
+        $fbUser = Socialite::driver('facebook')->stateless()->user();
 
-        $user = Auth::user() ?? \App\Models\User::first();
-        if (!$user) {
-            abort(401, 'No user available to attach SocialAccount. Please create a user or implement Auth.');
-        }
+        $token = $fbUser->token;
+        $res = Http::get('https://graph.facebook.com/oauth/access_token', [
+            'grant_type'        => 'fb_exchange_token',
+            'client_id'         => config('services.facebook.client_id'),
+            'client_secret'     => config('services.facebook.client_secret'),
+            'fb_exchange_token' => $token,
+        ])->json();
 
-        SocialAccount::updateOrCreate(
-            ['provider' => 'facebook', 'provider_user_id' => (string)$fbUser->getId()],
-            [
-                'user_id'          => $user->id,
-                'access_token'     => $fbUser->token,
-                'refresh_token'    => $fbUser->refreshToken ?? null,
-                'token_expires_at' => isset($fbUser->expiresIn) ? now()->addSeconds($fbUser->expiresIn) : null,
-                'raw'              => $fbUser->user ?? null,
-            ]
+        $longLived = $res['access_token'] ?? $token;
+
+        FacebookUser::updateOrCreate(
+            ['user_id' => auth()->id() ?? 0, 'fb_user_id' => $fbUser->getId()],
+            ['access_token' => $longLived, 'profile' => $fbUser->user]
         );
 
-        return redirect()->route('spa')->with('connected', 'facebook');
+        return redirect('/pages');
     }
 }

@@ -1,64 +1,73 @@
-
-<script setup>
-import { ref, onMounted } from 'vue'
-
-const loading = ref(false)
-const pages = ref([])
-const selected = ref(new Set())
-
-const loadPages = async () => {
-  loading.value = true
-  const res = await fetch('/api/pages')
-  pages.value = await res.json()
-  loading.value = false
-}
-
-const toggle = (pid) => {
-  if (selected.value.has(pid)) selected.value.delete(pid)
-  else selected.value.add(pid)
-}
-
-const importAndSubscribe = async () => {
-  loading.value = true
-  const res = await fetch('/api/facebook/import-pages', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ select: Array.from(selected.value) })
-  })
-  const data = await res.json()
-  await loadPages()
-  alert(`Đã import ${data.count} page`)
-  loading.value = false
-}
-
-onMounted(loadPages)
-</script>
-
 <template>
-  <div class="space-y-4">
-    <div class="flex items-center justify-between">
-      <h1 class="text-2xl font-semibold">Pages</h1>
-      <button class="px-3 py-1 rounded bg-blue-600 text-white"
-              @click="importAndSubscribe" :disabled="loading">
+  <div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <button class="btn" :disabled="busy" @click="importAndSubscribe">
         Nhập & Subscribe webhook
       </button>
+      <span v-if="selectedIds.size" class="mono">Đã chọn: {{ selectedIds.size }}</span>
     </div>
 
-    <p v-if="loading">Đang tải…</p>
-
-    <div v-else class="space-y-2">
-      <div v-for="p in pages" :key="p.id"
-           class="border rounded p-3 flex items-center justify-between">
-        <label class="flex items-center gap-3">
-          <input type="checkbox"
-                 :checked="selected.has(p.provider_page_id)"
-                 @change="toggle(p.provider_page_id)">
-          <span class="font-medium">{{ p.name || 'Untitled' }}</span>
-          <span class="text-gray-500">id: {{ p.provider_page_id }}</span>
-        </label>
-        <span v-if="p.subscribed" class="text-green-600">Đã subscribe ✓</span>
-        <span v-else class="text-gray-400">Chưa subscribe</span>
+    <div v-if="loading" class="mono">Đang tải…</div>
+    <div v-else>
+      <div v-if="pages.length === 0" class="mono">Không có Page nào</div>
+      <div class="list" v-else>
+        <div class="item" v-for="p in pages" :key="p.id">
+          <div>
+            <div><strong>{{ p.name }}</strong></div>
+            <div class="mono">id: {{ p.id }}</div>
+          </div>
+          <div>
+            <button class="btn" @click="toggle(p.id)">
+              {{ selectedIds.has(p.id) ? 'Đã chọn' : 'Chọn' }}
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   </div>
 </template>
+
+<script setup>
+import { ref, onMounted } from 'vue';
+
+const loading = ref(true);
+const pages = ref([]);
+const selectedIds = ref(new Set());
+const busy = ref(false);
+
+onMounted(async () => {
+  try {
+    const res = await fetch('/api/facebook/pages', { credentials: 'same-origin' });
+    const data = await res.json();
+    pages.value = data?.data ?? [];
+  } catch (e) {
+    console.error(e);
+  } finally {
+    loading.value = false;
+  }
+});
+
+function toggle(id) {
+  if (selectedIds.value.has(id)) selectedIds.value.delete(id);
+  else selectedIds.value.add(id);
+  selectedIds.value = new Set(selectedIds.value); // force update
+}
+
+async function importAndSubscribe() {
+  busy.value = true;
+  try {
+    for (const id of selectedIds.value) {
+      await fetch('/api/facebook/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ page_id: id })
+      });
+    }
+    alert('Đã xử lý xong (DEV giả lập).');
+  } catch (e) {
+    alert('Lỗi: ' + (e?.message || e));
+  } finally {
+    busy.value = false;
+  }
+}
+</script>

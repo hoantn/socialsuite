@@ -1,22 +1,23 @@
-import { defineConfig } from 'vite'
-import laravel from 'laravel-vite-plugin'
-import vue from '@vitejs/plugin-vue'
+import { defineConfig } from 'vite';
+import vue from '@vitejs/plugin-vue';
+import path from 'path';
 
 export default defineConfig({
-  plugins: [
-    laravel({
-      input: ['resources/js/app.js'],
-      refresh: true,
-    }),
-    vue(),
-  ],
-  server: {
-    host: 'mmo.homes',
-    port: 5173,
-    hmr: {
-      host: 'mmo.homes',
-      protocol: 'http',   // <-- http
-      port: 5173,
+  plugins: [vue()],
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, 'resources/js'),
     },
   },
-})
+  server: {
+    host: true,
+    https: false,
+    cors: true,
+    hmr: {
+      protocol: 'ws',
+      host: process.env.VITE_HMR_HOST || 'localhost',
+      clientPort: Number(process.env.VITE_HMR_CLIENT_PORT || 5173),
+      port: Number(process.env.VITE_HMR_PORT || 5173),
+    },
+  },
+});

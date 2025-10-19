@@ -1,22 +1,21 @@
-import { createRouter, createWebHistory } from 'vue-router'
+import { createRouter, createWebHistory } from 'vue-router';
 
-const Dashboard  = () => import('../views/Dashboard.vue')
-const Pages      = () => import('../views/Pages.vue')
-const Inbox      = () => import('../views/Inbox.vue')
-const Flows      = () => import('../views/Flows.vue')
-const Broadcasts = () => import('../views/Broadcasts.vue')
-const Settings   = () => import('../views/Settings.vue')
-const NotFound   = () => import('../views/NotFound.vue')
+const Dashboard = () => import('../pages/Dashboard.vue');
+const PagesIndex = () => import('../pages/PagesIndex.vue');
+const Inbox = () => import('../pages/Inbox.vue');
+const Flows = () => import('../pages/Flows.vue');
+const Broadcasts = () => import('../pages/Broadcasts.vue');
+const Settings = () => import('../pages/Settings.vue');
 
 export default createRouter({
   history: createWebHistory(),
   routes: [
-    { path: '/', component: Dashboard },
-    { path: '/pages', component: Pages },
-    { path: '/inbox', component: Inbox },
-    { path: '/flows', component: Flows },
-    { path: '/broadcasts', component: Broadcasts },
-    { path: '/settings', component: Settings },
-    { path: '/:pathMatch(.*)*', component: NotFound },
-  ]
-})
+    { path: '/', name:'dashboard', component: Dashboard },
+    { path: '/pages', name:'pages', component: PagesIndex },
+    { path: '/inbox', name:'inbox', component: Inbox },
+    { path: '/flows', name:'flows', component: Flows },
+    { path: '/broadcasts', name:'broadcasts', component: Broadcasts },
+    { path: '/settings', name:'settings', component: Settings },
+  ],
+  scrollBehavior() { return { top: 0 } }
+});
