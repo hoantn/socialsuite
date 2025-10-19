@@ -1,13 +1,52 @@
-# SocialSuite – Vue 3 + Vite SPA Patch (v4)
 
-Apply this over your Laravel repo. Fixes Vue plugin + SPA routing + missing CSS import.
+# SocialSuite Patch v1 (SQLite + HTTP)
 
-## Steps
-1) Backup first.
-2) Extract to project root (allow overwrite for the listed files).
-3) Run:
-   npm i
-   npm run dev   # or: npm run build
-4) Open your app domain and the SPA should render.
+## Packages
+```
+composer require laravel/socialite:^5.12 guzzlehttp/guzzle:^7.8 --with-all-dependencies
+```
 
-We'll add SQLite migrations + API endpoints next when you confirm the SPA shell is ok.
+## .env
+```
+APP_URL=http://mmo.homes
+APP_DEBUG=true
+
+DB_CONNECTION=sqlite
+VITE_DEV_SERVER_URL=http://mmo.homes:5173
+
+FACEBOOK_CLIENT_ID=your_app_id
+FACEBOOK_CLIENT_SECRET=your_app_secret
+FACEBOOK_REDIRECT=http://mmo.homes/auth/facebook/callback
+
+FB_WEBHOOK_VERIFY=supersecret_verify_token
+```
+
+Create DB:
+```
+type NUL > database/database.sqlite
+```
+
+Add to `config/services.php`:
+```php
+'facebook' => [
+  'client_id' => env('FACEBOOK_CLIENT_ID'),
+  'client_secret' => env('FACEBOOK_CLIENT_SECRET'),
+  'redirect' => env('FACEBOOK_REDIRECT'),
+],
+```
+
+Migrate:
+```
+php artisan migrate
+```
+
+Endpoints:
+- `/` SPA
+- `/auth/facebook/redirect` → `/auth/facebook/callback`
+- `GET /api/pages` + `POST /api/facebook/import-pages`
+- Webhook: `GET|POST /webhooks/facebook`
+
+Facebook App:
+- OAuth Redirect: `http://mmo.homes/auth/facebook/callback`
+- Webhook URL: `http://mmo.homes/webhooks/facebook`
+- Scopes: `pages_show_list, pages_manage_metadata, pages_messaging`
