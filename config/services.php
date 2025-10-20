@@ -2,18 +2,6 @@
 
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Third Party Services
-    |--------------------------------------------------------------------------
-    |
-    | This file is for storing the credentials for third party services such
-    | as Mailgun, Postmark, AWS and more. This file provides the de facto
-    | location for this type of information, allowing packages to have
-    | a conventional file to locate the various service credentials.
-    |
-    */
-
     'mailgun' => [
         'domain' => env('MAILGUN_DOMAIN'),
         'secret' => env('MAILGUN_SECRET'),
@@ -31,11 +19,11 @@ return [
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
 
-    // Optional: block Facebook (ổn định, đúng cú pháp)
+    // Optional – không bắt buộc, nhưng để đây cho đồng bộ
     'facebook' => [
-        'client_id'     => env('FB_APP_ID'),
-        'client_secret' => env('FB_APP_SECRET'),
-        'redirect'      => env('FB_REDIRECT_URI'),
+        'client_id'     => env('FB_APP_ID', env('FACEBOOK_APP_ID')),
+        'client_secret' => env('FB_APP_SECRET', env('FACEBOOK_APP_SECRET')),
+        'redirect'      => env('FB_REDIRECT_URI', env('FACEBOOK_REDIRECT_URI')),
         'graph_version' => env('FB_GRAPH_VERSION', 'v19.0'),
         'webhook_verify_token' => env('FB_WEBHOOK_VERIFY', 'verify_token_dev'),
     ],

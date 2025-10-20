@@ -1,41 +1,59 @@
-
 <?php
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use Laravel\Socialite\Facades\Socialite;
-use Illuminate\Support\Facades\Http;
-use App\Models\FacebookUser;
+use Facebook\Facebook;
+use App\Models\FbAccount;
+use Carbon\Carbon;
 
-class OAuthController extends Controller
-{
-    public function redirect()
-    {
-        return Socialite::driver('facebook')
-            ->scopes(['pages_show_list','pages_manage_metadata','pages_messaging','public_profile','email'])
-            ->redirect();
+class AuthController extends Controller {
+    public function redirect(Facebook $fb) {
+        // 🔧 Đảm bảo PHP session đã mở trước khi gọi SDK
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session()->start();
+        }
+
+        $helper = $fb->getRedirectLoginHelper();
+        $scopes = [
+            'pages_show_list','pages_manage_metadata','pages_read_engagement',
+            'pages_read_user_content','pages_manage_posts','pages_messaging'
+        ];
+        $loginUrl = $helper->getLoginUrl(env('FB_REDIRECT_URI'), $scopes);
+        return redirect($loginUrl);
     }
 
-    public function callback(Request $request)
-    {
-        $fbUser = Socialite::driver('facebook')->stateless()->user();
+    public function callback(Facebook $fb) {
+        // 🔧 Mở session ở callback luôn (SDK đọc state từ session)
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            session()->start();
+        }
 
-        $token = $fbUser->token;
-        $res = Http::get('https://graph.facebook.com/oauth/access_token', [
-            'grant_type'        => 'fb_exchange_token',
-            'client_id'         => config('services.facebook.client_id'),
-            'client_secret'     => config('services.facebook.client_secret'),
-            'fb_exchange_token' => $token,
-        ])->json();
+        $helper = $fb->getRedirectLoginHelper();
+        $accessToken = $helper->getAccessToken();
 
-        $longLived = $res['access_token'] ?? $token;
+        $oAuth2Client = $fb->getOAuth2Client();
+        $longLived = $oAuth2Client->getLongLivedAccessToken($accessToken);
 
-        FacebookUser::updateOrCreate(
-            ['user_id' => auth()->id() ?? 0, 'fb_user_id' => $fbUser->getId()],
-            ['access_token' => $longLived, 'profile' => $fbUser->user]
+        $fb->setDefaultAccessToken($longLived);
+        $res = $fb->get('/me?fields=id,name,picture');
+        $me = $res->getGraphUser();
+
+        $acc = FbAccount::updateOrCreate(
+            ['fb_user_id' => (string)$me->getId()],
+            [
+                'name' => $me->getName(),
+                'avatar_url' => $me->getPicture() ? $me->getPicture()->getUrl() : null,
+                'user_access_token' => (string)$longLived,
+                'token_expires_at' => Carbon::now()->addDays(55),
+                'granted_scopes' => []
+            ]
         );
+        session(['fb_account_id' => $acc->id]);
+        return redirect()->route('pages.index');
+    }
 
-        return redirect('/pages');
+    public function logout() {
+        session()->forget('fb_account_id');
+        return redirect()->route('home');
     }
 }
