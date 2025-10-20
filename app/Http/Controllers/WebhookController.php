@@ -1,32 +1,25 @@
-
 <?php
 
 namespace App\Http\Controllers;
 
-use App\Models\WebhookLog;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 
-class WebhookController extends Controller
-{
-    public function handle(Request $req)
-    {
-        if ($req->isMethod('get')) {
-            $mode = $req->query('hub_mode') ?: $req->query('hub.mode');
-            $token = $req->query('hub_verify_token') ?: $req->query('hub.verify_token');
-            $challenge = $req->query('hub_challenge') ?: $req->query('hub.challenge');
-
-            if ($mode === 'subscribe' && $token === config('app.fb_webhook_verify', env('FB_WEBHOOK_VERIFY'))) {
-                return response($challenge, 200);
-            }
-            return response('Forbidden', 403);
+class WebhookController extends Controller {
+    // Verification (GET)
+    public function handleGet(Request $r) {
+        $verify_token = config('services.facebook.webhook_verify_token', 'verify_token_dev');
+        if ($r->get('hub_mode') === 'subscribe' && $r->get('hub_verify_token') === $verify_token) {
+            return response($r->get('hub_challenge'), 200);
         }
+        return response('Error, wrong validation token', 403);
+    }
 
-        WebhookLog::create([
-            'provider' => 'facebook',
-            'type'     => data_get($req->all(),'object'),
-            'payload'  => $req->all(),
-        ]);
-
-        return response()->json(['received'=>true]);
+    // Receive (POST)
+    public function handlePost(Request $r) {
+        $payload = $r->all();
+        Log::info('FB Webhook event', ['payload' => $payload]);
+        // TODO: Dispatch jobs based on event type (comments/messages/etc).
+        return response()->json(['ok' => true]);
     }
 }

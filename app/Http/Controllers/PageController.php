@@ -1,73 +1,48 @@
-
 <?php
 
 namespace App\Http\Controllers;
 
-use App\Models\Page;
-use App\Models\SocialAccount;
+use Illuminate\Support\Facades\DB;
+use Facebook\Facebook;
+use App\Models\{FbAccount,FbPage,AccountPage};
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Http;
 
-class PageController extends Controller
-{
-    public function list()
-    {
-        return Page::query()->orderByDesc('id')->get();
+class PageController extends Controller {
+    public function index() {
+        $pages = FbPage::query()->orderBy('name')->get();
+        return view('pages.index', compact('pages'));
     }
 
-    public function importAndSubscribe(Request $req)
-    {
-        $user = Auth::user() ?? \App\Models\User::first();
-        if (!$user) { abort(401, 'No user'); }
+    public function sync(Facebook $fb) {
+        $acc = FbAccount::findOrFail(session('fb_account_id'));
+        $fb->setDefaultAccessToken($acc->user_access_token);
 
-        $account = SocialAccount::where('user_id',$user->id)
-            ->where('provider','facebook')->first();
+        $resp = $fb->get('/me/accounts?fields=id,name,category,picture{url},username,connected_instagram_account,access_token,perms');
+        $edges = $resp->getGraphEdge();
 
-        if (!$account) abort(400, 'Facebook not connected');
-
-        $resp = Http::get('https://graph.facebook.com/v20.0/me/accounts', [
-            'access_token' => $account->access_token,
-            'fields' => 'id,name,category,access_token',
-            'limit'  => 100,
-        ])->throw()->json();
-
-        $selected = collect($req->input('select', []))->map(fn($v)=> (string)$v);
-        $imported = [];
-
-        foreach ((array) data_get($resp, 'data', []) as $p) {
-            $pid = (string) data_get($p,'id');
-            if ($selected->isNotEmpty() && !$selected->contains($pid)) continue;
-
-            $page = Page::updateOrCreate(
-                ['provider_page_id'=>$pid],
-                [
-                    'name' => data_get($p,'name'),
-                    'category' => data_get($p,'category'),
-                    'page_access_token' => data_get($p,'access_token'),
-                ]
-            );
-
-            $page->users()->syncWithoutDetaching([$user->id]);
-
-            try {
-                Http::asForm()->post("https://graph.facebook.com/v20.0/{$pid}/subscribed_apps", [
-                    'access_token'      => $page->page_access_token,
-                    'subscribed_fields' => 'messages,messaging_postbacks,message_deliveries,message_reads,feed',
-                ])->throw();
-
-                $page->update(['subscribed'=>true]);
-            } catch (\Throwable $e) {
-                report($e);
+        DB::transaction(function () use ($edges, $acc) {
+            foreach ($edges as $p) {
+                $pageId = (string)$p['id'];
+                $pageToken = (string)$p['access_token'];
+                FbPage::updateOrCreate(
+                    ['page_id' => $pageId],
+                    [
+                        'name' => $p['name'] ?? null,
+                        'username' => $p['username'] ?? null,
+                        'category' => $p['category'] ?? null,
+                        'avatar_url' => $p['picture']['url'] ?? null,
+                        'connected_ig_id' => $p['connected_instagram_account']['id'] ?? null,
+                        'page_access_token' => $pageToken,
+                        'capabilities' => $p['perms'] ?? [],
+                    ]
+                );
+                AccountPage::updateOrCreate(
+                    ['fb_account_id'=>$acc->id, 'page_id'=>$pageId],
+                    ['granted_scopes'=>$p['perms'] ?? [], 'role'=>null]
+                );
             }
+        });
 
-            $imported[] = $page->refresh();
-        }
-
-        return response()->json([
-            'ok' => true,
-            'count' => count($imported),
-            'pages' => $imported,
-        ]);
+        return redirect()->route('pages.index')->with('ok','Đã đồng bộ Page từ Facebook.');
     }
 }
