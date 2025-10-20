@@ -1,45 +1,26 @@
+# SocialSuite Facebook Real Patch
 
-# SocialSuite Patch (SQLite + Facebook OAuth + Pages Import)
-
-This patch drops into an **existing Laravel 10/11/12** project and adds:
-
-- SQLite-ready migrations and models
-- Facebook OAuth (Socialite) scaffolding
-- `/api/pages` + `/api/pages/import` endpoints
-- `/auth/facebook/redirect` + `/auth/facebook/callback` routes
-- A safe catch‑all SPA route that serves `resources/views/public.blade.php`
-
-> You can overwrite files in your project with the ones in this zip.
-
-## Quick install
-
-1) **Backup** your project, then extract this zip to the project root and allow overwrite.
-
-2) Ensure SQLite is used (create DB file and set `.env`):
-
-- Windows: `type nul > database\database.sqlite`
-- macOS/Linux: `touch database/database.sqlite`
-
-Add/Update in `.env`:
-
+## 1) Packages
 ```
-APP_URL=http://mmo.homes
-SESSION_DOMAIN=mmo.homes
-SANCTUM_STATEFUL_DOMAINS=mmo.homes
-
-DB_CONNECTION=sqlite
-DB_DATABASE=database/database.sqlite
-
-FACEBOOK_CLIENT_ID=YOUR_ID
-FACEBOOK_CLIENT_SECRET=YOUR_SECRET
-FACEBOOK_REDIRECT_URI=http://mmo.homes/auth/facebook/callback
+composer require facebook/graph-sdk
 ```
 
-3) **Composer** (Socialite + dependencies):
-
+## 2) .env
 ```
-composer require laravel/socialite:^5.12 -W
+FB_APP_ID=your_fb_app_id
+FB_APP_SECRET=your_fb_app_secret
+FB_OAUTH_REDIRECT=https://yourdomain.tld/api/facebook/callback
+FB_VERIFY_TOKEN=your_verify_token
+```
+
+## 3) Migrate
+```
 php artisan migrate
 ```
 
-4) Start server & Vite. Visit `/pages` to connect Facebook and import Pages.
+## 4) Endpoints
+- POST `/api/facebook/callback` body: `{access_token: short_lived_token}` -> lưu long-lived user token
+- POST `/api/facebook/import` (hoặc `{ token: long_token }`) -> lưu pages thật vào DB
+- GET `/api/facebook/pages` -> danh sách page
+- POST `/api/facebook/subscribe` body: `{page_id: "..."}`
+- Webhook: `/webhook/facebook` (GET verify + POST events)
