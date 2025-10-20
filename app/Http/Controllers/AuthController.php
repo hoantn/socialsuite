@@ -2,14 +2,15 @@
 
 namespace App\Http\Controllers;
 
-use Facebook\Facebook;
+use App\Services\FacebookClient;
 use App\Models\FbAccount;
 use Carbon\Carbon;
 
 class AuthController extends Controller
 {
-    public function redirect(Facebook $fb)
+    public function redirect(FacebookClient $client)
     {
+        $fb = $client->sdk();
         $helper = $fb->getRedirectLoginHelper();
 
         $scopes = [
@@ -21,8 +22,9 @@ class AuthController extends Controller
         return redirect($loginUrl);
     }
 
-    public function callback(Facebook $fb)
+    public function callback(FacebookClient $client)
     {
+        $fb = $client->sdk();
         $helper = $fb->getRedirectLoginHelper();
         $accessToken = $helper->getAccessToken();
         if (!$accessToken) {

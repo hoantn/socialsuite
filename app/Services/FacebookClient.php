@@ -13,6 +13,7 @@ class FacebookClient {
             'app_id'  => env('FB_APP_ID', env('FACEBOOK_APP_ID')),
             'app_secret' => env('FB_APP_SECRET', env('FACEBOOK_APP_SECRET')),
             'default_graph_version' => env('FB_GRAPH_VERSION','v19.0'),
+            // Pass the app('session') (SessionManager) safely; handler will normalize to Store
             'persistent_data_handler' => new LaravelPersistentDataHandler(app('session')),
         ]);
     }
