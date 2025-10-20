@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
 use Facebook\Facebook;
 use App\Models\FbAccount;
 use Carbon\Carbon;
@@ -14,7 +13,7 @@ class AuthController extends Controller {
             'pages_show_list','pages_manage_metadata','pages_read_engagement',
             'pages_read_user_content','pages_manage_posts','pages_messaging'
         ];
-        $loginUrl = $helper->getLoginUrl(config('services.facebook.redirect'), $scopes);
+        $loginUrl = $helper->getLoginUrl(env('FB_REDIRECT_URI'), $scopes);
         return redirect($loginUrl);
     }
 
@@ -44,6 +43,6 @@ class AuthController extends Controller {
 
     public function logout() {
         session()->forget('fb_account_id');
-        return redirect()->route('fb.redirect');
+        return redirect()->route('home');
     }
 }

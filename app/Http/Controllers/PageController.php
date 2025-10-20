@@ -5,7 +5,6 @@ namespace App\Http\Controllers;
 use Illuminate\Support\Facades\DB;
 use Facebook\Facebook;
 use App\Models\{FbAccount,FbPage,AccountPage};
-use Illuminate\Http\Request;
 
 class PageController extends Controller {
     public function index() {
@@ -16,7 +15,6 @@ class PageController extends Controller {
     public function sync(Facebook $fb) {
         $acc = FbAccount::findOrFail(session('fb_account_id'));
         $fb->setDefaultAccessToken($acc->user_access_token);
-
         $resp = $fb->get('/me/accounts?fields=id,name,category,picture{url},username,connected_instagram_account,access_token,perms');
         $edges = $resp->getGraphEdge();
 

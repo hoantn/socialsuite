@@ -15,9 +15,9 @@ class PageConfigController extends Controller {
     public function update(Request $r, $page_id) {
         $cfg = PageConfig::firstOrCreate(['page_id'=>$page_id]);
         $cfg->settings = [
-            'posting_defaults' => $r->input('posting_defaults', []),
-            'schedule' => $r->input('schedule', []),
-            'auto_reply' => $r->input('auto_reply', ['enabled'=>false]),
+            'posting_defaults' => json_decode($r->input('posting_defaults','[]'), true),
+            'schedule' => json_decode($r->input('schedule','[]'), true),
+            'auto_reply' => json_decode($r->input('auto_reply','{"enabled":false}'), true),
         ];
         $cfg->updated_by = session('fb_account_id');
         $cfg->save();

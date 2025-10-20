@@ -4,7 +4,7 @@
         "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
         "This file is @generated automatically"
     ],
-    "content-hash": "ad2cb25b5f379e3412434a8075fb85ca",
+    "content-hash": "5c9266161d0d39c67eeecd2a01472291",
     "packages": [
         {
             "name": "brick/math",
@@ -511,16 +511,16 @@
         },
         {
             "name": "facebook/graph-sdk",
-            "version": "5.1.4",
+            "version": "5.1.0",
             "source": {
                 "type": "git",
                 "url": "https://github.com/facebook/php-graph-sdk.git",
-                "reference": "38fd7187a6704d3ab14ded2f3a534ac4ee6f3481"
+                "reference": "cc551f793492fa92ca107d596a6f1e3a62fb894c"
             },
             "dist": {
                 "type": "zip",
-                "url": "https://api.github.com/repos/facebook/php-graph-sdk/zipball/38fd7187a6704d3ab14ded2f3a534ac4ee6f3481",
-                "reference": "38fd7187a6704d3ab14ded2f3a534ac4ee6f3481",
+                "url": "https://api.github.com/repos/facebook/php-graph-sdk/zipball/cc551f793492fa92ca107d596a6f1e3a62fb894c",
+                "reference": "cc551f793492fa92ca107d596a6f1e3a62fb894c",
                 "shasum": ""
             },
             "require": {
@@ -564,10 +564,10 @@
             ],
             "support": {
                 "issues": "https://github.com/facebook/php-graph-sdk/issues",
-                "source": "https://github.com/facebook/php-graph-sdk/tree/5.1.4"
+                "source": "https://github.com/facebook/php-graph-sdk/tree/5.1.0"
             },
             "abandoned": true,
-            "time": "2016-05-13T17:28:30+00:00"
+            "time": "2015-10-13T22:11:58+00:00"
         },
         {
             "name": "firebase/php-jwt",
