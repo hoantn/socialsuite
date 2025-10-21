@@ -1,0 +1,7 @@
+<?php
+// Suggestion for callback to be explicit with redirect_uri:
+//
+// $helper = $client->sdk()->getRedirectLoginHelper();
+// $accessToken = $helper->getAccessToken(config('facebook.redirect_uri'));
+//
+// Avoids edge cases when Facebook tries to infer redirect URL.
