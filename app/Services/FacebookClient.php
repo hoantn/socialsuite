@@ -3,8 +3,8 @@
 namespace App\Services;
 
 use Facebook\Facebook;
-use Facebook\HttpClients\FacebookGuzzleHttpClient;
 use App\Support\Facebook\LaravelPersistentDataHandler;
+use App\Support\Facebook\Guzzle7HttpClient;
 use GuzzleHttp\Client as GuzzleClient;
 
 class FacebookClient {
@@ -25,14 +25,14 @@ class FacebookClient {
             'timeout' => 30,
         ]);
 
-        $handler = new FacebookGuzzleHttpClient($guzzle);
+        $handler = new Guzzle7HttpClient($guzzle);
 
         $this->fb = new Facebook([
-            'app_id'  => env('FB_APP_ID', env('FACEBOOK_APP_ID')),
-            'app_secret' => env('FB_APP_SECRET', env('FACEBOOK_APP_SECRET')),
-            'default_graph_version' => env('FB_GRAPH_VERSION','v19.0'),
-            'persistent_data_handler' => new LaravelPersistentDataHandler(app('session')),
-            'http_client_handler' => $handler,
+            'app_id'                  => env('FB_APP_ID', env('FACEBOOK_APP_ID')),
+            'app_secret'              => env('FB_APP_SECRET', env('FACEBOOK_APP_SECRET')),
+            'default_graph_version'   => env('FB_GRAPH_VERSION', 'v19.0'),
+            'persistent_data_handler' => new \App\Support\Facebook\LaravelPersistentDataHandler(app('session')),
+            'http_client_handler'     => $handler,
         ]);
     }
 

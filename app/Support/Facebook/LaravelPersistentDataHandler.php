@@ -12,9 +12,6 @@ class LaravelPersistentDataHandler implements PersistentDataInterface
     protected $session;
     protected string $prefix;
 
-    /**
-     * @param \Illuminate\Contracts\Session\Session|\Illuminate\Session\SessionManager $session
-     */
     public function __construct($session, string $prefix = 'fb_')
     {
         if ($session instanceof SessionManager) {

@@ -1,29 +1,28 @@
-# SocialSuite Facebook HTTP Client (DEV Final) - 2025_10_21_074401
+# SocialSuite — Facebook Login DEV Pack (2025_10_21_071259)
 
-Overwrite the following files in your project:
-- app/Support/Facebook/FacebookResponseAdapter.php
-- app/Support/Facebook/Guzzle7HttpClient.php
-- app/Services/FacebookClient.php
+Use this to make Facebook Login work smoothly on **http://localhost**.
 
-Require once:
+## Install once
     composer require facebook/graph-sdk:^5.1 guzzlehttp/guzzle:^7
 
-.env (DEV):
+## .env (DEV)
 APP_URL=http://localhost
 FB_APP_ID=YOUR_APP_ID
 FB_APP_SECRET=YOUR_APP_SECRET
 FB_REDIRECT_URI=http://localhost/auth/facebook/callback
 FB_GRAPH_VERSION=v19.0
+
 SESSION_DRIVER=file
-SESSION_DOMAIN=localhost
+SESSION_DOMAIN=
 SESSION_SECURE_COOKIE=false
 SESSION_SAMESITE=lax
+
 FB_SSL_VERIFY=false
 
-After overwriting, clear caches:
+## Clear caches
 php artisan optimize:clear
 php artisan config:clear
 php artisan route:clear
 php artisan view:clear
 
-Start login at: http://localhost/auth/facebook/redirect
+Open: http://localhost/auth/facebook/redirect
