@@ -3,7 +3,7 @@
 namespace App\Services;
 
 use Facebook\Facebook;
-use GuzzleHttp\Client as GuzzleClient;
+use Facebook\HttpClients\FacebookCurlHttpClient;
 use App\Support\Facebook\LaravelPersistentDataHandler;
 use Illuminate\Contracts\Session\Session as SessionContract;
 
@@ -15,18 +15,16 @@ class FacebookClient
     {
         $verify = filter_var(env('FB_SSL_VERIFY', 'true'), FILTER_VALIDATE_BOOLEAN);
 
-        $guzzle = new GuzzleClient([
-            'timeout' => (float) env('FB_HTTP_TIMEOUT', 30),
-            'verify'  => $verify,
-        ]);
-
-        // Use SDK's built-in 'guzzle' handler for best compatibility with Guzzle 6/7
         $this->sdk = new Facebook([
             'app_id'                  => config('facebook.app_id'),
             'app_secret'              => config('facebook.app_secret'),
             'default_graph_version'   => config('facebook.graph_version', 'v19.0'),
-            'http_client_handler'     => 'guzzle',
-            'http_client'             => $guzzle,
+            'http_client_handler'     => new FacebookCurlHttpClient(),
+            'curl_opts'               => [
+                CURLOPT_SSL_VERIFYPEER => $verify,
+                CURLOPT_CONNECTTIMEOUT => (int) env('FB_HTTP_TIMEOUT', 30),
+                CURLOPT_TIMEOUT        => (int) env('FB_HTTP_TIMEOUT', 30),
+            ],
             'persistent_data_handler' => new LaravelPersistentDataHandler($session),
         ]);
     }

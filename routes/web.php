@@ -29,3 +29,8 @@ Route::post('/webhooks/facebook', [WebhookController::class,'handlePost']);
 // Health & Privacy
 Route::get('/health', [HealthController::class,'index'])->name('health');
 Route::view('/privacy/data-deletion','privacy.data_deletion')->name('privacy.data_deletion');
+
+Route::middleware('web')->group(function () {
+    Route::get('auth/facebook/redirect', [\App\Http\Controllers\AuthController::class, 'redirect'])->name('fb.redirect');
+    Route::get('auth/facebook/callback', [\App\Http\Controllers\AuthController::class, 'callback'])->name('fb.callback');
+});

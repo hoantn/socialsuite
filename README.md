@@ -1,12 +1,18 @@
-# Hotfix: Session contract for Facebook persistent data handler
+# SocialSuite — DEV-stable OAuth patch (refresh)
 
-Error you saw:
-`TypeError: App\Support\Facebook\LaravelPersistentDataHandler::__construct(): Argument #1 ($session) must be of type Illuminate\Contracts\Session\Session, Illuminate\Session\SessionManager given`
+This bundle replaces 4 files:
 
-**Fix:** Inject `Illuminate\Contracts\Session\Session` into `FacebookClient` and pass it to
-`LaravelPersistentDataHandler`. Do not call `app('session')` (SessionManager).
+- app/Services/FacebookClient.php
+- app/Support/Facebook/LaravelPersistentDataHandler.php
+- app/Http/Controllers/AuthController.php
+- config/facebook.php
 
-After copy:
-```
-php artisan optimize:clear
-```
+After copying:
+    php artisan optimize:clear
+    php artisan config:clear
+
+Routes (web.php):
+Route::middleware('web')->group(function () {
+    Route::get('auth/facebook/redirect', [\App\Http\Controllers\AuthController::class, 'redirect'])->name('fb.redirect');
+    Route::get('auth/facebook/callback', [\App\Http\Controllers\AuthController::class, 'callback'])->name('fb.callback');
+});
