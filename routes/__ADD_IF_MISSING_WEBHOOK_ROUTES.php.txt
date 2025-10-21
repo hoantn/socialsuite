@@ -1,0 +1,7 @@
+<?php
+// If you don't already have these routes, add them to routes/web.php:
+
+// Route::get('webhooks/facebook', [\App\Http\Controllers\WebhookController::class, 'handleGet']);
+// Route::post('webhooks/facebook', [\App\Http\Controllers\WebhookController::class, 'handlePost']);
+
+// Route::post('api/facebook/subscribe', [\App\Http\Controllers\Api\FacebookController::class, 'subscribe'])->name('api.facebook.subscribe');

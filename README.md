@@ -1,29 +1,37 @@
-# SocialSuite Facebook HTTP Client (DEV Final) - 2025_10_21_074401
 
-Overwrite the following files in your project:
-- app/Support/Facebook/FacebookResponseAdapter.php
-- app/Support/Facebook/Guzzle7HttpClient.php
-- app/Services/FacebookClient.php
+# SocialSuite – Next Steps (Webhook + Jobs + Subscribe) – 2025_10_21_075855
 
-Require once:
-    composer require facebook/graph-sdk:^5.1 guzzlehttp/guzzle:^7
+This bundle adds:
+- Robust Facebook Page Webhook handler (GET verify + POST events)
+- Queue jobs for messages and comments
+- A small service wrapper for Graph calls
+- `subscribe` endpoint implementation to subscribe pages to Webhooks
+- Database queue migration (jobs table)
 
-.env (DEV):
-APP_URL=http://localhost
-FB_APP_ID=YOUR_APP_ID
-FB_APP_SECRET=YOUR_APP_SECRET
-FB_REDIRECT_URI=http://localhost/auth/facebook/callback
-FB_GRAPH_VERSION=v19.0
-SESSION_DRIVER=file
-SESSION_DOMAIN=localhost
-SESSION_SECURE_COOKIE=false
-SESSION_SAMESITE=lax
-FB_SSL_VERIFY=false
+## Files
+- app/Http/Controllers/WebhookController.php
+- app/Http/Controllers/Api/FacebookController.php  (updated subscribe logic)
+- app/Jobs/HandleMessageEventJob.php
+- app/Jobs/HandleCommentEventJob.php
+- app/Services/FacebookActions.php
+- database/migrations/2025_10_21_000001_create_jobs_table.php
+- routes/web.php (ONLY instructions comment – keep your existing routes if already set)
 
-After overwriting, clear caches:
-php artisan optimize:clear
-php artisan config:clear
-php artisan route:clear
-php artisan view:clear
+## .env additions
+```
+FB_WEBHOOK_VERIFY_TOKEN=dev-verify-token
+QUEUE_CONNECTION=database
+```
 
-Start login at: http://localhost/auth/facebook/redirect
+## Run
+```
+php artisan migrate
+php artisan queue:work
+```
+
+This assumes you already have:
+- Page records with page access tokens (`account_page` table)
+- Webhook routes: 
+  - GET  /webhooks/facebook
+  - POST /webhooks/facebook
+If not, see the comment at the bottom of this README for route snippets.
