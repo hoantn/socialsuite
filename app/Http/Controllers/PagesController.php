@@ -1,64 +1,69 @@
-
 <?php
 
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Http;
-use App\Models\FacebookUser;
-use App\Models\FacebookPage;
-use App\Models\FacebookPageUser;
-use App\Models\FacebookPageWebhook;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use App\Models\FbAccount;
+use App\Models\FbPage;
+use App\Services\FacebookClient;
 
+/**
+ * PagesController – fixed to use the DI FacebookClient (which in DEV uses verify=false)
+ * so you won't see "SSL certificate problem: unable to get local issuer certificate".
+ */
 class PagesController extends Controller
 {
-    public function index(Request $request)
-    {
-        $pages = FacebookPage::query()->orderBy('name')->get()->map(fn($p) => [
-            'id' => $p->id,
-            'page_id' => $p->page_id,
-            'name' => $p->name,
-        ]);
+    protected FacebookClient $fb;
 
-        return response()->json(['data' => $pages]);
+    public function __construct(FacebookClient $fb)
+    {
+        $this->fb = $fb;
     }
 
-    public function import(Request $request)
+    public function sync(Request $request)
     {
-        $fbUser = FacebookUser::latest()->first();
-        if (!$fbUser) {
-            return response()->json(['message' => 'Chưa kết nối Facebook'], 400);
-        }
+        $accountId = (int) $request->session()->get('fb_account_id');
+        $acc = FbAccount::findOrFail($accountId);
+        $userToken = $acc->user_access_token;
 
-        $pages = Http::get('https://graph.facebook.com/v19.0/me/accounts', [
-            'access_token' => $fbUser->access_token,
-            'fields' => 'id,name,access_token,category',
-            'limit' => 100,
-        ])->json('data') ?? [];
+        // Gắn token user làm default cho SDK
+        $this->fb->sdk()->setDefaultAccessToken($userToken);
 
-        foreach ($pages as $pg) {
-            $page = FacebookPage::updateOrCreate(
-                ['page_id' => $pg['id']],
-                ['name' => $pg['name'] ?? null, 'category' => $pg['category'] ?? null, 'raw' => $pg]
-            );
+        // Lấy danh sách page (kèm page token + perms)
+        // (Có thể dùng biến thể truyền token ở tham số 3 nếu bạn muốn tách bạch)
+        $resp = $this->fb->sdk()->get('/me/accounts?fields=id,name,category,picture{url},username,connected_instagram_account,access_token,perms');
+        $data = $resp->getDecodedBody();
+        $pages = $data['data'] ?? [];
 
-            FacebookPageUser::updateOrCreate(
-                ['facebook_user_id' => $fbUser->id, 'facebook_page_id' => $page->id],
-                ['page_access_token' => $pg['access_token'] ?? '']
-            );
+        DB::transaction(function () use ($pages, $acc) {
+            foreach ($pages as $p) {
+                $pageId = (string)($p['id'] ?? '');
+                if ($pageId === '') { continue; }
 
-            // (Optional) subscribe webhook (needs verified app):
-            // Http::post("https://graph.facebook.com/v19.0/{$pg['id']}/subscribed_apps", [
-            //     'access_token' => $pg['access_token'],
-            //     'subscribed_fields' => 'messages,messaging_postbacks'
-            // ]);
+                // upsert fb_pages
+                $page = FbPage::updateOrCreate(
+                    ['fb_page_id' => $pageId],
+                    [
+                        'name'       => $p['name'] ?? null,
+                        'avatar_url' => $p['picture']['data']['url'] ?? null,
+                    ]
+                );
 
-            FacebookPageWebhook::updateOrCreate(
-                ['facebook_page_id' => $page->id, 'subscription' => 'messages'],
-                ['active' => true]
-            );
-        }
+                // upsert account_page pivot
+                DB::table('account_page')->updateOrInsert(
+                    ['fb_account_id' => $acc->id, 'fb_page_id' => $page->id],
+                    [
+                        'page_access_token' => $p['access_token'] ?? null,
+                        'perms'             => json_encode($p['perms'] ?? []),
+                        'updated_at'        => now(),
+                        'created_at'        => now(),
+                    ]
+                );
+            }
+        });
 
-        return response()->json(['ok' => true]);
+        return redirect()->route('pages.index')->with('ok', true);
     }
 }
