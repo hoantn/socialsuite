@@ -1,10 +1,10 @@
-# Patch: fix SSL error in Pages sync (2025_10_21_082406)
+# Patch: Force Facebook SDK to use our Guzzle client (2025_10_21_083039)
 
-- This PagesController uses the injected `App\Services\FacebookClient`, which
-  in DEV reads `FB_SSL_VERIFY=false` to disable certificate verification so you
-  won't see `SSL certificate problem: unable to get local issuer certificate`.
+- Uses `Facebook\HttpClients\FacebookGuzzleHttpClient` with our `GuzzleHttp\Client`.
+- Respects `.env` `FB_SSL_VERIFY=false` in DEV to bypass Windows CA issues.
+- Also passes `'http_client' => $guzzle` for newer SDKs.
 
-## Required .env for DEV
+## .env
 FB_SSL_VERIFY=false
 FB_APP_ID=...
 FB_APP_SECRET=...
