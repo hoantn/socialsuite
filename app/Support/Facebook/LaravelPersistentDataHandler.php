@@ -6,10 +6,6 @@ use Facebook\PersistentData\PersistentDataInterface;
 use Illuminate\Contracts\Session\Session as SessionContract;
 use Illuminate\Session\SessionManager;
 
-/**
- * Persistent data handler that stores OAuth state in Laravel session.
- * Accepts either SessionManager or Session Store and normalizes to Store.
- */
 class LaravelPersistentDataHandler implements PersistentDataInterface
 {
     /** @var SessionContract */
@@ -22,7 +18,6 @@ class LaravelPersistentDataHandler implements PersistentDataInterface
     public function __construct($session, string $prefix = 'fb_')
     {
         if ($session instanceof SessionManager) {
-            // Normalize to the underlying Store (implements Contracts\Session\Session)
             $session = $session->driver();
         }
         $this->session = $session;
