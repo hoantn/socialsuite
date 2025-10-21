@@ -2,59 +2,75 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
 use App\Services\FacebookClient;
 use App\Models\FbAccount;
-use Carbon\Carbon;
 
 class AuthController extends Controller
 {
+    // GET /auth/facebook/redirect
     public function redirect(FacebookClient $client)
     {
-        $fb = $client->sdk();
+        // make sure session exists + new id to avoid fixation and stale state
+        session()->start();
+        session()->regenerate(true);
+
+        $fb     = $client->sdk();
         $helper = $fb->getRedirectLoginHelper();
 
         $scopes = [
-            'pages_show_list','pages_manage_metadata','pages_read_engagement',
-            'pages_read_user_content','pages_manage_posts','pages_messaging',
+            'pages_show_list', 'pages_manage_metadata', 'pages_read_engagement',
+            'pages_read_user_content', 'pages_manage_posts', 'pages_messaging'
         ];
 
-        $loginUrl = $helper->getLoginUrl(env('FB_REDIRECT_URI'), $scopes);
-        return redirect($loginUrl);
+        $loginUrl = $helper->getLoginUrl(config('facebook.redirect_uri'), $scopes);
+        return redirect()->away($loginUrl);
     }
 
-    public function callback(FacebookClient $client)
+    // GET /auth/facebook/callback
+    public function callback(Request $request, FacebookClient $client)
     {
-        $fb = $client->sdk();
+        $fb     = $client->sdk();
         $helper = $fb->getRedirectLoginHelper();
-        $accessToken = $helper->getAccessToken();
-        if (!$accessToken) {
-            abort(400, 'OAuth failed: '.($helper->getError() ?? 'unknown'));
+
+        try {
+            $accessToken = $helper->getAccessToken();
+        } catch (\Facebook\Exceptions\FacebookResponseException $e) {
+            Log::error('Graph returned an error', ['e' => $e->getMessage()]);
+            abort(400, 'OAuth failed: '.$e->getMessage());
+        } catch (\Facebook\Exceptions\FacebookSDKException $e) {
+            Log::error('Facebook SDK returned an error', ['e' => $e->getMessage()]);
+            abort(400, 'OAuth failed: '.$e->getMessage());
         }
 
-        $oAuth2Client = $fb->getOAuth2Client();
-        $longLived = $oAuth2Client->getLongLivedAccessToken($accessToken);
+        if (!$accessToken) {
+            abort(400, 'OAuth failed: no access token');
+        }
 
-        $fb->setDefaultAccessToken($longLived);
-        $me = $fb->get('/me?fields=id,name,picture')->getGraphUser();
+        // Use token immediately
+        $client->setDefaultAccessToken((string) $accessToken);
 
-        $acc = FbAccount::updateOrCreate(
-            ['fb_user_id' => (string)$me->getId()],
+        // Fetch user profile
+        $me = $fb->get('/me?fields=id,name,picture{url}')->getGraphUser();
+        $fbUserId = (string) $me->getId();
+        $name     = $me->getName();
+        $avatar   = $me->getPicture() ? ($me->getPicture()->getUrl() ?? null) : null;
+
+        // Save/Upsert
+        $acc = \App\Models\FbAccount::updateOrCreate(
+            ['fb_user_id' => $fbUserId],
             [
-                'name' => $me->getName(),
-                'avatar_url' => $me->getPicture() ? $me->getPicture()->getUrl() : null,
-                'user_access_token' => (string)$longLived,
-                'token_expires_at' => Carbon::now()->addDays(55),
-                'granted_scopes' => [],
+                'name'              => $name,
+                'avatar_url'        => $avatar,
+                'user_access_token' => (string) $accessToken,
             ]
         );
 
+        // Keep account id in session for later pages sync
         session(['fb_account_id' => $acc->id]);
-        return redirect()->route('pages.index');
-    }
 
-    public function logout()
-    {
-        session()->forget('fb_account_id');
-        return redirect()->route('home');
+        return redirect('/pages');
     }
 }
