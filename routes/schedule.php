@@ -1,9 +1,9 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\ScheduledPostController;
+use App\Http\Controllers\SchedulePostController;
 
-Route::get('/schedule', [ScheduledPostController::class, 'index'])->name('schedule.index');
-Route::post('/schedule', [ScheduledPostController::class, 'store'])->name('schedule.store');
-Route::post('/schedule/{id}/cancel', [ScheduledPostController::class, 'cancel'])->name('schedule.cancel');
-Route::delete('/schedule/{post}', [ScheduledPostController::class, 'cancel'])->name('schedule.cancel');
+Route::middleware(['web'])->group(function () {
+    Route::get('/schedule', [SchedulePostController::class, 'index'])->name('schedule.index');
+    Route::post('/schedule', [SchedulePostController::class, 'store'])->name('schedule.store');
+});

@@ -2,100 +2,83 @@
 
 namespace App\Http\Controllers;
 
+use App\Models\FbPage;
 use App\Models\ScheduledPost;
-use App\Models\FbPage; // đổi theo model page của bạn, nếu khác thì require lại tên đúng
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
-use Carbon\Carbon;
-use Illuminate\Support\Facades\Auth;
+use Carbon\CarbonImmutable;
 
 class SchedulePostController extends Controller
 {
     public function index(Request $request)
     {
-        // Lấy danh sách pages của user (đổi model/fields cho đúng repo của bạn)
+        $user = $request->user();
         $pages = FbPage::query()
-            ->where('user_id', Auth::id())
+            ->where('user_id', $user->id ?? null)
             ->orderBy('name')
-            ->get(['id', 'page_id', 'name', 'picture_url']);
+            ->get(['id','page_id','name','picture_url','category','access_token','connected_ig_id']);
 
-        // Lấy 15 lịch gần nhất
         $items = ScheduledPost::query()
-            ->latest('id')
+            ->orderByDesc('id')
             ->limit(15)
-            ->get()
-            ->map(function ($it) {
-                $tz = data_get($it->meta, 'tz', 'Asia/Ho_Chi_Minh');
-                $it->tz = $tz;
-                if ($it->publish_at) {
-                    $it->publish_local = $it->publish_at->copy()->setTimezone($tz);
-                }
-                $count = is_array($it->media_paths) ? count($it->media_paths) : 0;
-                $it->media_type = $count > 1 ? 'album' : ($count === 1 ? 'photo' : null);
-                return $it;
-            });
+            ->get();
 
-        return view('schedule.index', compact('pages', 'items'));
+        $tz = $request->old('timezone', 'Asia/Ho_Chi_Minh');
+
+        return view('schedule.index', compact('pages','items','tz'));
     }
 
     public function store(Request $request)
     {
-        // Form gửi: page_ids[], message, photos[] (multiple), tz, publish_at_local (Y-m-d H:i)
-        $data = $request->validate([
-            'page_ids'           => ['required', 'array', 'min:1'],
-            'page_ids.*'         => ['string'],
-            'message'            => ['nullable', 'string', 'max:10000'],
-            'photos'             => ['nullable'],
-            'photos.*'           => ['file', 'image', 'max:5120'], // 5MB/ảnh
-            'tz'                 => ['required', 'string'],
-            'publish_at_local'   => ['required', 'date_format:Y-m-d H:i'],
+        $request->validate([
+            'page_ids'   => ['required','array','min:1'],
+            'message'    => ['nullable','string','max:2000'],
+            'photos'     => ['required','array','min:1','max:5'],
+            'photos.*'   => ['file','mimes:jpeg,png,jpg,gif','max:5120'],
+            'timezone'   => ['required','string'],
+            'publish_at' => ['required','date_format:Y-m-d H:i'],
         ]);
 
-        // Chuyển thời gian người dùng chọn -> UTC để lưu DB
-        $tz = $data['tz'];
-        $publishLocal = Carbon::createFromFormat('Y-m-d H:i', $data['publish_at_local'], $tz);
-        $publishUtc   = $publishLocal->clone()->setTimezone('UTC');
+        $tz   = $request->input('timezone', 'Asia/Ho_Chi_Minh');
+        $whenLocal = CarbonImmutable::createFromFormat('Y-m-d H:i', $request->input('publish_at'), $tz);
+        $publishAtUtc = $whenLocal->setTimezone('UTC');
 
-        // Lưu ảnh vào storage/public/schedule_media
+        $batchId = (string) Str::ulid();
+        $mediaDir = "scheduled-media/{$batchId}";
+        Storage::disk('local')->makeDirectory($mediaDir);
+
         $mediaPaths = [];
-        if ($request->hasFile('photos')) {
-            foreach ($request->file('photos') as $file) {
-                if (!$file) continue;
-                if (!$file->isValid()) continue;
-
-                // NOTE: cần chạy `php artisan storage:link` 1 lần để public link hoạt động
-                $path = $file->store('schedule_media', 'public');
-                $mediaPaths[] = 'storage/'.$path; // đường dẫn public
-            }
+        foreach ($request->file('photos', []) as $i => $file) {
+            if (!$file->isValid()) { continue; }
+            $ext = strtolower($file->getClientOriginalExtension() ?: 'jpg');
+            $name = sprintf('%02d.%s', $i+1, $ext);
+            $path = "{$mediaDir}/{$name}";
+            Storage::disk('local')->put($path, file_get_contents($file->getRealPath()));
+            $mediaPaths[] = $path;
         }
 
-        // Tạo lịch cho từng page
-        foreach ($data['page_ids'] as $pid) {
-            ScheduledPost::create([
-                'user_id'     => Auth::id(),
-                'page_id'     => $pid,
-                'message'     => $data['message'] ?? null,
-                'media_paths' => $mediaPaths,             // cast json
-                'publish_at'  => $publishUtc,             // UTC
-                'status'      => 'queued',
-                'meta'        => [
-                    'tz'            => $tz,
-                    'publish_local' => $publishLocal->toDateTimeString(),
-                    'media_count'   => count($mediaPaths),
-                ],
+        if (empty($mediaPaths)) {
+            return back()->withErrors(['photos' => 'Không có ảnh nào được tải lên.']);
+        }
+
+        $created = [];
+        foreach ($request->input('page_ids') as $pid) {
+            $post = ScheduledPost::create([
+                'page_id'       => $pid,
+                'message'       => $request->string('message')->toString(),
+                'media_paths'   => json_encode($mediaPaths, JSON_UNESCAPED_SLASHES),
+                'media_count'   => count($mediaPaths),
+                'media_type'    => count($mediaPaths) > 1 ? 'album' : 'photo',
+                'timezone'      => $tz,
+                'publish_at'    => $publishAtUtc->toDateTimeString(),
+                'status'        => 'queued',
+                'batch_id'      => $batchId,
             ]);
+            $created[] = $post->id;
         }
 
-        return redirect()->route('schedule.index')->with('ok', 'Đã lưu lịch thành công.');
-    }
-
-    public function cancel(Request $request, ScheduledPost $scheduled)
-    {
-        if ($scheduled->status === 'queued') {
-            $scheduled->status = 'canceled';
-            $scheduled->save();
-        }
-        return back();
+        return redirect()->route('schedule.index')
+            ->with('ok', 'Đã lưu ' . count($created) . ' lịch đăng.');
     }
 }
