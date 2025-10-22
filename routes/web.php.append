@@ -1,5 +1,5 @@
 
-// Thêm vào routes/web.php (ở cuối file) để nạp routes compose
-if (file_exists(base_path('routes/compose.php'))) {
-    require base_path('routes/compose.php');
+// Nạp routes scheduler
+if (file_exists(base_path('routes/schedule.php'))) {
+    require base_path('routes/schedule.php');
 }

@@ -23,3 +23,7 @@ Route::get('/dashboard', fn() => redirect()->route('pages.index'))->name('dashbo
 if (file_exists(base_path('routes/compose.php'))) {
     require base_path('routes/compose.php');
 }
+// Nạp routes scheduler
+if (file_exists(base_path('routes/schedule.php'))) {
+    require base_path('routes/schedule.php');
+}
