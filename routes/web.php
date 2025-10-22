@@ -1,17 +1,15 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use App\Http\Controllers\Auth\FacebookController;
+use App\Http\Controllers\Auth\FacebookManualController as FB;
 
-Route::get('/', function () {
-    return view('welcome');
-})->name('home');
+// Home
+Route::get('/', [FB::class, 'home'])->name('home');
 
-// Phase 2: OAuth (stub)
-// Hiện tại chỉ tạo route để UI không 404.
-Route::get('/auth/facebook', [FacebookController::class, 'redirect'])->name('facebook.redirect');
-Route::get('/auth/facebook/callback', [FacebookController::class, 'callback'])->name('facebook.callback');
+// OAuth
+Route::get('/auth/facebook', [FB::class, 'redirect'])->name('facebook.redirect');
+Route::get('/auth/facebook/callback', [FB::class, 'callback'])->name('facebook.callback');
+Route::get('/logout', [FB::class, 'logout'])->name('logout');
 
-Route::middleware('web')->group(function () {
-    Route::get('/dashboard', [FacebookController::class, 'dashboard'])->name('dashboard');
-});
+// Dashboard
+Route::get('/dashboard', [FB::class, 'dashboard'])->name('dashboard');
