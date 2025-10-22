@@ -2,16 +2,15 @@
 
 namespace App\Jobs;
 
-use App\Models\FbPage;
-use App\Models\ScheduledPost;
+use Carbon\Carbon;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
-use Illuminate\Foundation\Bus\Dispatchable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Foundation\Bus\Dispatchable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Storage;
-use Throwable;
 
 class PublishScheduledPost implements ShouldQueue
 {
@@ -27,73 +26,83 @@ class PublishScheduledPost implements ShouldQueue
 
     public function handle(): void
     {
-        $post = ScheduledPost::find($this->scheduledId);
-        if (!$post || $post->status !== 'queued') { return; }
+        $row = DB::table('scheduled_posts')->where('id',$this->scheduledId)->first();
+        if (!$row || $row->status !== 'queued') return;
 
-        $page = FbPage::where('page_id', $post->page_id)->first();
-        if (!$page || !$page->access_token) {
-            $post->update(['status' => 'failed', 'error' => 'Page token missing.']);
+        // Không đăng trước thời điểm
+        if (Carbon::parse($row->publish_at, 'UTC')->isFuture()) return;
+
+        $page = DB::table('fb_pages')->where('page_id',$row->page_id)->orWhere('id',$row->page_id)->first();
+        if (!$page) {
+            DB::table('scheduled_posts')->where('id',$row->id)->update([
+                'status'=>'failed','error'=>'Page not found','updated_at'=>now()
+            ]);
             return;
         }
 
-        $token = $page->access_token;
         $graph = 'https://graph.facebook.com/v18.0';
+        $token = $page->access_token;
+
+        $media = json_decode($row->media_paths, true) ?: [];
+        $type  = $row->media_type;
 
         try {
-            $mediaPaths = json_decode($post->media_paths, true) ?: [];
-            if (count($mediaPaths) === 0) {
-                $post->update(['status' => 'failed', 'error' => 'No images uploaded']);
-                return;
-            }
-
-            if (count($mediaPaths) === 1) {
-                $path = Storage::disk('local').path($mediaPaths[0]);
-            } else {
-                $path = null;
-            }
-
-            if (count($mediaPaths) === 1) {
-                $filePath = Storage::disk('local').path($mediaPaths[0]);
-                $resp = Http::asMultipart()->post("{$graph}/{$page->page_id}/photos", [
-                    ['name' => 'source', 'contents' => fopen($filePath, 'r')],
-                    ['name' => 'message', 'contents' => (string) $post->message],
-                    ['name' => 'access_token', 'contents' => $token],
-                ]);
-                if ($resp->failed()) {
-                    $post->update(['status' => 'failed', 'error' => $resp->body()]);
-                    return;
-                }
-            } else {
-                $attached = [];
-                foreach ($mediaPaths as $p) {
-                    $filePath = Storage::disk('local').path($p);
-                    $r = Http::asMultipart()->post("{$graph}/{$page->page_id}/photos", [
-                        ['name' => 'source', 'contents' => fopen($filePath, 'r')],
-                        ['name' => 'published', 'contents' => 'false'],
-                        ['name' => 'access_token', 'contents' => $token],
-                    ]);
-                    if ($r->failed()) {
-                        $post->update(['status' => 'failed', 'error' => $r->body()]);
-                        return;
+            if ($type === 'image') {
+                if (count($media) === 1) {
+                    // Một ảnh
+                    $f = $media[0];
+                    $filePath = Storage::disk('local')->path($f['path']);
+                    $res = Http::attach('source', fopen($filePath,'r'), basename($filePath))
+                        ->asMultipart()
+                        ->post("{$graph}/{$page->page_id}/photos", [
+                            'caption' => $row->message,
+                            'access_token' => $token,
+                            'published' => true,
+                        ]);
+                    if ($res->failed()) throw new \Exception($res->body());
+                } else {
+                    // Album (attached_media)
+                    $mediaFbids = [];
+                    foreach ($media as $f) {
+                        $filePath = Storage::disk('local')->path($f['path']);
+                        $res = Http::attach('source', fopen($filePath,'r'), basename($filePath))
+                            ->asMultipart()
+                            ->post("{$graph}/{$page->page_id}/photos", [
+                                'published' => false,
+                                'access_token' => $token,
+                            ]);
+                        if ($res->failed()) throw new \Exception($res->body());
+                        $mediaFbids[] = ['media_fbid' => $res->json('id')];
                     }
-                    $attached[] = ['media_fbid' => $r->json('id')];
+                    $payload = [
+                        'message'       => $row->message,
+                        'attached_media'=> json_encode($mediaFbids),
+                        'access_token'  => $token,
+                    ];
+                    $res2 = Http::asForm()->post("{$graph}/{$page->page_id}/feed", $payload);
+                    if ($res2->failed()) throw new \Exception($res2->body());
                 }
-                $payload = [
-                    'attached_media' => json_encode($attached),
-                    'message' => (string) $post->message,
-                    'access_token' => $token,
-                ];
-                $resp = Http::asForm()->post("{$graph}/{$page->page_id}/feed", $payload);
-                if ($resp->failed()) {
-                    $post->update(['status' => 'failed', 'error' => $resp->body()]);
-                    return;
-                }
+            } else { // video
+                if (count($media) !== 1) throw new \Exception('Only 1 video allowed');
+                $f = $media[0];
+                $filePath = Storage::disk('local')->path($f['path']);
+                $res = Http::attach('source', fopen($filePath,'r'), basename($filePath))
+                    ->asMultipart()
+                    ->post("{$graph}/{$page->page_id}/videos", [
+                        'description' => $row->message,
+                        'access_token' => $token,
+                        'published' => true,
+                    ]);
+                if ($res->failed()) throw new \Exception($res->body());
             }
 
-            $post->update(['status' => 'success', 'error' => null]);
-        } catch (Throwable $e) {
-            $post->update(['status' => 'failed', 'error' => $e->getMessage()]);
-            throw $e;
+            DB::table('scheduled_posts')->where('id',$row->id)->update([
+                'status'=>'posted','updated_at'=>now(),
+            ]);
+        } catch (\Throwable $e) {
+            DB::table('scheduled_posts')->where('id',$row->id)->update([
+                'status'=>'failed','error'=>substr($e->getMessage(),0,1000),'updated_at'=>now(),
+            ]);
         }
     }
 }

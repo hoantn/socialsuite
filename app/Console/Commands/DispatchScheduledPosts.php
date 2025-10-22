@@ -2,31 +2,31 @@
 
 namespace App\Console\Commands;
 
+use Carbon\Carbon;
 use Illuminate\Console\Command;
-use App\Models\ScheduledPost;
+use Illuminate\Support\Facades\DB;
 use App\Jobs\PublishScheduledPost;
-use Carbon\CarbonImmutable;
 
 class DispatchScheduledPosts extends Command
 {
     protected $signature = 'socialsuite:dispatch-scheduled';
-    protected $description = 'Dispatch scheduled posts whose publish_at (UTC) is due.';
+    protected $description = 'Dispatch jobs to publish due scheduled posts';
 
-    public function handle(): int
+    public function handle()
     {
-        $now = CarbonImmutable::now('UTC')->startSecond();
-        $due = ScheduledPost::query()
-            ->where('status', 'queued')
-            ->where('publish_at', '<=', $now->toDateTimeString())
-            ->orderBy('id')
-            ->limit(100)
-            ->get(['id']);
+        $now = Carbon::now('UTC')->toDateTimeString();
 
-        foreach ($due as $row) {
-            PublishScheduledPost::dispatch($row->id);
+        $rows = DB::table('scheduled_posts')
+            ->where('status','queued')
+            ->where('publish_at','<=',$now)
+            ->limit(100)
+            ->get();
+
+        foreach ($rows as $r) {
+            PublishScheduledPost::dispatch($r->id);
         }
 
-        $this->info("Dispatched: " . $due->count());
-        return self::SUCCESS;
+        $this->info('Dispatched: '.$rows->count());
+        return 0;
     }
 }
