@@ -28,12 +28,23 @@ class PublishScheduledPostJob implements ShouldQueue
         return config('socialsuite.facebook.graph_version', env('FACEBOOK_GRAPH_VERSION', 'v20.0'));
     }
 
+    protected function uploadUnpublishedPhoto(string $pageId, string $token, string $fullPath): array
+    {
+        $filename = basename($fullPath);
+        $resp = Http::attach('source', file_get_contents($fullPath), $filename)
+            ->asMultipart()
+            ->post('https://graph.facebook.com/'.$this->graphV()."/{$pageId}/photos", [
+                'published' => 'false',
+                'access_token' => $token,
+            ]);
+        return [$resp->ok(), $resp->json()];
+    }
+
     public function handle(): void
     {
         $sch = ScheduledPost::find($this->scheduledId);
         if (!$sch) return;
 
-        // Skip if canceled/finished
         if (in_array($sch->status, ['canceled','published'])) return;
 
         $sch->status = 'processing';
@@ -52,29 +63,63 @@ class PublishScheduledPostJob implements ShouldQueue
 
         try {
             $message = $sch->message;
+            $data = null;
+            $ok = false;
+            $type = 'feed';
 
-            if ($sch->media_path && file_exists(storage_path('app/'.$sch->media_path))) {
-                $fullPath = storage_path('app/'.$sch->media_path);
-                $filename = basename($fullPath);
-                $resp = Http::attach('source', file_get_contents($fullPath), $filename)
-                    ->asMultipart()
-                    ->post('https://graph.facebook.com/'.$this->graphV()."/{$pageId}/photos", [
-                        'caption' => $message,
-                        'access_token' => $token,
-                    ]);
-                $type = 'photo';
+            $mediaPaths = $sch->media_paths ?: [];
+            if (!$mediaPaths && $sch->media_path) {
+                $mediaPaths = [$sch->media_path]; // backward compat
+            }
+
+            if (count($mediaPaths) > 1) {
+                $attached = [];
+                foreach ($mediaPaths as $rel) {
+                    $full = storage_path('app/'.$rel);
+                    if (!file_exists($full)) continue;
+                    [$uok, $udata] = $this->uploadUnpublishedPhoto($pageId, $token, $full);
+                    if ($uok && isset($udata['id'])) {
+                        $attached[] = ['media_fbid' => $udata['id']];
+                    }
+                }
+                if (count($attached) == 0) {
+                    $ok = false; $data = ['error'=>['message'=>'No images uploaded']];
+                } else {
+                    $form = ['access_token'=>$token, 'message'=>$message];
+                    foreach ($attached as $i => $item) {
+                        $form['attached_media['.$i.']'] = json_encode($item);
+                    }
+                    $resp = Http::asForm()->post('https://graph.facebook.com/'.$this->graphV()."/{$pageId}/feed", $form);
+                    $ok = $resp->ok();
+                    $data = $resp->json();
+                    $type = 'album';
+                }
+            } elseif (count($mediaPaths) == 1) {
+                $full = storage_path('app/'.$mediaPaths[0]);
+                if (file_exists($full)) {
+                    $filename = basename($full);
+                    $resp = Http::attach('source', file_get_contents($full), $filename)
+                        ->asMultipart()
+                        ->post('https://graph.facebook.com/'.$this->graphV()."/{$pageId}/photos", [
+                            'caption' => $message,
+                            'access_token' => $token,
+                        ]);
+                    $ok = $resp->ok();
+                    $data = $resp->json();
+                    $type = 'photo';
+                } else {
+                    $ok = false; $data = ['error'=>['message'=>'Image not found']];
+                }
             } else {
                 $resp = Http::asForm()->post('https://graph.facebook.com/'.$this->graphV()."/{$pageId}/feed", [
                     'message' => $message,
                     'access_token' => $token,
                 ]);
+                $ok = $resp->ok();
+                $data = $resp->json();
                 $type = 'feed';
             }
 
-            $ok = $resp->ok();
-            $data = $resp->json();
-
-            // Save to fb_posts (history)
             FbPost::create([
                 'page_id' => $pageId,
                 'page_name' => $page->name ?? null,
@@ -91,6 +136,7 @@ class PublishScheduledPostJob implements ShouldQueue
             $sch->error_code = $ok ? null : (data_get($data,'error.code'));
             $sch->error_message = $ok ? null : (data_get($data,'error.message'));
             $sch->response = $data;
+            $sch->media_type = (count($mediaPaths) > 1) ? 'album' : ((count($mediaPaths)==1)?'photo':null);
             $sch->save();
 
         } catch (\Throwable $e) {
@@ -98,7 +144,7 @@ class PublishScheduledPostJob implements ShouldQueue
             $sch->status = 'failed';
             $sch->error_message = $e->getMessage();
             $sch->save();
-            throw $e; // let queue retry
+            throw $e;
         }
     }
 }

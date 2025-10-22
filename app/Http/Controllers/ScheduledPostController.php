@@ -3,9 +3,6 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Carbon;
 use App\Models\FbUser;
 use App\Models\FbPage;
 use App\Models\ScheduledPost;
@@ -27,7 +24,7 @@ class ScheduledPostController extends Controller
         $request->validate([
             'page_id' => 'required|string',
             'message' => 'nullable|string|max:63206',
-            'photo'   => 'nullable|file|mimes:jpg,jpeg,png,gif|max:5120',
+            'photos.*'=> 'nullable|file|mimes:jpg,jpeg,png,gif|max:5120',
             'publish_at' => 'required|date_format:Y-m-d\TH:i',
             'timezone'   => 'required|string',
         ]);
@@ -39,16 +36,22 @@ class ScheduledPostController extends Controller
         $dtLocal = \DateTime::createFromFormat('Y-m-d\TH:i', $request->input('publish_at'), $tz);
         $dtUtc = (clone $dtLocal)->setTimezone(new \DateTimeZone('UTC'));
 
-        $mediaPath = null;
-        if ($request->hasFile('photo')) {
-            $mediaPath = $request->file('photo')->store('scheduled_media');
+        $mediaPaths = [];
+        if ($request->hasFile('photos')) {
+            foreach ($request->file('photos') as $file) {
+                if ($file and $file->isValid()) {
+                    $mediaPaths.append($file->store('scheduled_media'));
+                }
+            }
         }
 
         ScheduledPost::create([
             'page_id' => $pageId,
             'page_name' => $page->name ?? null,
             'message' => $request->input('message'),
-            'media_path' => $mediaPath,
+            'media_path' => null,
+            'media_paths' => $mediaPaths ?: null,
+            'media_type' => $mediaPaths and count($mediaPaths) > 1 ? 'album' : ( ($mediaPaths and count($mediaPaths)==1) ? 'photo': null ),
             'timezone' => $request->input('timezone'),
             'publish_at' => $dtUtc->format('Y-m-d H:i:s'),
             'status' => 'queued',
