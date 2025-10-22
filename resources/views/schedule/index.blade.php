@@ -1,3 +1,4 @@
+@php use Illuminate\Support\Str; @endphp
 <!doctype html>
 <html>
 <head>
@@ -75,18 +76,29 @@
               <th>ID</th>
               <th>Page</th>
               <th>Nội dung</th>
-              <th>Thời gian (UTC)</th>
+              <th>Thời gian</th>
               <th>Trạng thái</th>
               <th></th>
             </tr>
           </thead>
           <tbody>
             @forelse($list as $item)
+              @php
+                $tz = $item->timezone ?: 'Asia/Ho_Chi_Minh';
+                $local = $item->publish_at ? $item->publish_at->copy()->setTimezone($tz) : null;
+              @endphp
               <tr>
                 <td>#{{ $item->id }}</td>
                 <td>{{ $item->page_name }}<br><span class="small">{{ $item->page_id }}</span></td>
                 <td>{{ Str::limit($item->message, 80) }}</td>
-                <td>{{ $item->publish_at }}</td>
+                <td>
+                  @if($local)
+                    {{ $local->format('Y-m-d H:i:s') }} <span class="small">({{ $tz }})</span><br>
+                    <span class="small">UTC: {{ $item->publish_at->format('Y-m-d H:i:s') }}</span>
+                  @else
+                    —
+                  @endif
+                </td>
                 <td><span class="pill">{{ $item->status }}</span><br>
                   @if($item->error_message)
                     <span class="small" style="color:#fca5a5">{{ $item->error_message }}</span>
