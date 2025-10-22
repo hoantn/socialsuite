@@ -19,3 +19,7 @@ Route::get('/pages', [PageController::class, 'index'])->name('pages.index');
 Route::get('/pages/{pageId}', [PageController::class, 'show'])->name('pages.show');
 Route::post('/pages/{pageId}/publish', [PageController::class, 'publish'])->name('pages.publish');
 Route::get('/dashboard', fn() => redirect()->route('pages.index'))->name('dashboard');
+// nạp routes compose
+if (file_exists(base_path('routes/compose.php'))) {
+    require base_path('routes/compose.php');
+}

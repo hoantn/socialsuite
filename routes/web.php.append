@@ -1,6 +1,5 @@
-<?php
 
-use Illuminate\Support\Facades\Route;
-
-// Alias để tránh lỗi Route [dashboard] not defined
-Route::get('/dashboard', fn() => redirect()->route('pages.index'))->name('dashboard');
+// Thêm vào routes/web.php (ở cuối file) để nạp routes compose
+if (file_exists(base_path('routes/compose.php'))) {
+    require base_path('routes/compose.php');
+}

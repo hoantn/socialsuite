@@ -7,7 +7,7 @@ use Illuminate\Database\Eloquent\Model;
 class FbPost extends Model
 {
     protected $fillable = [
-        'page_id','post_id','message','type','status','response'
+        'page_id','page_name','post_id','message','type','status','error_code','error_message','response'
     ];
 
     protected $casts = [
