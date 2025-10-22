@@ -1,1 +1,0 @@
-<template><h1>Broadcasts</h1></template>

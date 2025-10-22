@@ -1,7 +1,0 @@
-<?php
-// === Add inside schedule(Schedule $schedule) in app/Console/Kernel.php ===
-// Example: periodic health tasks (pseudo)
-
-// $schedule->call(function() {
-//     // Re-subscribe webhooks if needed, clean old logs, etc.
-// })->everyFifteenMinutes();

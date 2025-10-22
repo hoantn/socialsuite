@@ -1,1 +1,0 @@
-<template><div class='card'><h1>Flows</h1><p>Đang phát triển…</p></div></template>

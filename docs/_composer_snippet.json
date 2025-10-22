@@ -1,0 +1,15 @@
+{
+    "require": {
+        "php": "^8.2",
+        "laravel/framework": "^12.0",
+        "fruitcake/laravel-cors": "^4.0"
+    },
+    "scripts": {
+        "post-root-package-install": [
+            "@php -r \"file_exists('.env') || copy('.env.example', '.env');\""
+        ],
+        "post-create-project-cmd": [
+            "@php artisan key:generate --ansi"
+        ]
+    }
+}

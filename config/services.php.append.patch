@@ -1,9 +1,0 @@
-<?php
-// === Add into config/services.php ===
-'facebook' => [
-    'client_id' => env('FB_APP_ID'),
-    'client_secret' => env('FB_APP_SECRET'),
-    'redirect' => env('FB_REDIRECT_URI'),
-    'graph_version' => env('FB_GRAPH_VERSION', 'v19.0'),
-    'webhook_verify_token' => env('FB_WEBHOOK_VERIFY','verify_token_dev'),
-],
