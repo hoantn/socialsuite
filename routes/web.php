@@ -3,6 +3,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\FacebookManualController as FB;
 use App\Http\Controllers\PageController;
+use App\Http\Controllers\ScheduledPostController;
 
 // Home -> chuyển hướng tới /pages nếu đã login
 Route::get('/', function () {

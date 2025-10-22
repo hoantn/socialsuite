@@ -6,3 +6,4 @@ use App\Http\Controllers\ScheduledPostController;
 Route::get('/schedule', [ScheduledPostController::class, 'index'])->name('schedule.index');
 Route::post('/schedule', [ScheduledPostController::class, 'store'])->name('schedule.store');
 Route::post('/schedule/{id}/cancel', [ScheduledPostController::class, 'cancel'])->name('schedule.cancel');
+Route::delete('/schedule/{post}', [ScheduledPostController::class, 'cancel'])->name('schedule.cancel');
