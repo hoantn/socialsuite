@@ -4,13 +4,16 @@ namespace App\Http\Controllers;
 
 use App\Models\ScheduledPost;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Carbon\Carbon;
 
 class ScheduledPostController extends Controller
 {
     /**
-     * Hiển thị trang lên lịch (nếu dự án bạn đã có index riêng, có thể bỏ qua thay đổi này)
+     * Trang tạo lịch đăng.
+     * - Truyền $pages cho view (select Page)
+     * - Truyền $scheduled để hiển thị danh sách lịch gần nhất
      */
     public function index(Request $request)
     {
@@ -18,21 +21,26 @@ class ScheduledPostController extends Controller
             ? ($request->user()->timezone ?? 'UTC')
             : 'UTC';
 
+        // Lấy danh sách Page. Nếu cần ràng buộc theo owner, có thể thêm where('owner_id', auth()->id()).
+        $pages = DB::table('fb_pages')
+            ->orderBy('name')
+            ->get();
+
         $scheduled = ScheduledPost::orderByDesc('id')->limit(15)->get();
 
         return view('schedule.index', [
-            'scheduled' => $scheduled,
+            'pages'           => $pages,
+            'scheduled'       => $scheduled,
             'defaultTimezone' => $tz,
         ]);
     }
 
     /**
-     * Lưu lịch đăng — FIX:
-     * - Sửa lỗi gọi append() -> dùng $mediaPaths[] = ...
-     * - Hỗ trợ nhiều ảnh:
-     *     + 1 ảnh  : media_path + media_type = 'photo'
-     *     + >=2 ảnh: media_paths (json) + media_type = 'album'
-     * - publish_at luôn lưu theo UTC từ timezone người dùng chọn
+     * Lưu lịch đăng.
+     * - FIX lỗi append(): dùng $mediaPaths[] = $path
+     * - 1 ảnh  => media_path + media_type = 'photo'
+     * - >=2 ảnh => media_paths (json) + media_type = 'album'
+     * - publish_at: lưu UTC dựa trên timezone người dùng chọn
      */
     public function store(Request $request)
     {
@@ -40,8 +48,8 @@ class ScheduledPostController extends Controller
             'page_id'    => ['required', 'string'],
             'page_name'  => ['nullable', 'string'],
             'message'    => ['nullable', 'string'],
-            'timezone'   => ['required', 'string'], // VD: Asia/Ho_Chi_Minh
-            'publish_at' => ['required', 'date'],   // bạn đang submit ISO 8601 => OK
+            'timezone'   => ['required', 'string'],  // ví dụ: Asia/Ho_Chi_Minh
+            'publish_at' => ['required', 'date'],    // nếu submit ISO 8601 từ input datetime-local là OK
             'photos'     => ['nullable', 'array', 'max:5'],
             'photos.*'   => ['nullable', 'file', 'image', 'max:5120'], // 5MB
         ]);
@@ -60,13 +68,13 @@ class ScheduledPostController extends Controller
         }
 
         // Convert thời gian người dùng chọn -> UTC
-        // Nếu submit ISO 8601 (chuẩn), Carbon parse trực tiếp:
+        // Nếu submit ISO 8601: Carbon::parse(..., timezone)->utc() xử lý được
         $publishUtc = Carbon::parse(
             $request->input('publish_at'),
             $request->input('timezone')
         )->utc();
 
-        // Nếu bạn submit "dd/mm/yyyy HH:ii" (không phải ISO), dùng:
+        // Nếu bạn submit dưới dạng custom "d/m/Y H:i", thay bằng:
         // $publishUtc = Carbon::createFromFormat('d/m/Y H:i', $request->input('publish_at'), $request->input('timezone'))->utc();
 
         // Xác định loại media
@@ -82,9 +90,9 @@ class ScheduledPostController extends Controller
             'page_name'   => $request->input('page_name'),
             'message'     => $request->input('message'),
 
-            // 1 ảnh -> media_path
+            // Ảnh đơn
             'media_path'  => count($mediaPaths) === 1 ? $mediaPaths[0] : null,
-            // >=2 ảnh -> media_paths (json)
+            // Album
             'media_paths' => count($mediaPaths) > 1  ? $mediaPaths : null,
             'media_type'  => $mediaType,
 
@@ -98,7 +106,7 @@ class ScheduledPostController extends Controller
     }
 
     /**
-     * Hủy lịch (tuỳ luồng)
+     * Hủy một lịch (nếu còn trong queued/processing).
      */
     public function cancel(ScheduledPost $post)
     {
@@ -106,6 +114,7 @@ class ScheduledPostController extends Controller
             $post->status = 'canceled';
             $post->save();
         }
+
         return redirect()->back()->with('success', 'Đã hủy lịch #' . $post->id);
     }
 }
