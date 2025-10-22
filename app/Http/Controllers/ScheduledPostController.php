@@ -2,72 +2,110 @@
 
 namespace App\Http\Controllers;
 
-use Illuminate\Http\Request;
-use App\Models\FbUser;
-use App\Models\FbPage;
 use App\Models\ScheduledPost;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Storage;
+use Carbon\Carbon;
 
 class ScheduledPostController extends Controller
 {
+    /**
+     * Hiển thị trang lên lịch (nếu dự án bạn đã có index riêng, có thể bỏ qua thay đổi này)
+     */
     public function index(Request $request)
     {
-        $uid = session('fb_uid');
-        $user = $uid ? FbUser::find($uid) : null;
-        $pages = $user ? FbPage::where('owner_id',$user->id)->orderBy('name')->get() : collect();
+        $tz = $request->user() && method_exists($request->user(), 'timezone')
+            ? ($request->user()->timezone ?? 'UTC')
+            : 'UTC';
 
-        $list = ScheduledPost::orderByDesc('publish_at')->paginate(15);
-        return view('schedule.index', compact('pages','list'));
+        $scheduled = ScheduledPost::orderByDesc('id')->limit(15)->get();
+
+        return view('schedule.index', [
+            'scheduled' => $scheduled,
+            'defaultTimezone' => $tz,
+        ]);
     }
 
+    /**
+     * Lưu lịch đăng — FIX:
+     * - Sửa lỗi gọi append() -> dùng $mediaPaths[] = ...
+     * - Hỗ trợ nhiều ảnh:
+     *     + 1 ảnh  : media_path + media_type = 'photo'
+     *     + >=2 ảnh: media_paths (json) + media_type = 'album'
+     * - publish_at luôn lưu theo UTC từ timezone người dùng chọn
+     */
     public function store(Request $request)
     {
         $request->validate([
-            'page_id' => 'required|string',
-            'message' => 'nullable|string|max:63206',
-            'photos.*'=> 'nullable|file|mimes:jpg,jpeg,png,gif|max:5120',
-            'publish_at' => 'required|date_format:Y-m-d\TH:i',
-            'timezone'   => 'required|string',
+            'page_id'    => ['required', 'string'],
+            'page_name'  => ['nullable', 'string'],
+            'message'    => ['nullable', 'string'],
+            'timezone'   => ['required', 'string'], // VD: Asia/Ho_Chi_Minh
+            'publish_at' => ['required', 'date'],   // bạn đang submit ISO 8601 => OK
+            'photos'     => ['nullable', 'array', 'max:5'],
+            'photos.*'   => ['nullable', 'file', 'image', 'max:5120'], // 5MB
         ]);
 
-        $pageId = $request->input('page_id');
-        $page = \App\Models\FbPage::where('page_id',$pageId)->first();
-
-        $tz = new \DateTimeZone($request->input('timezone'));
-        $dtLocal = \DateTime::createFromFormat('Y-m-d\TH:i', $request->input('publish_at'), $tz);
-        $dtUtc = (clone $dtLocal)->setTimezone(new \DateTimeZone('UTC'));
-
         $mediaPaths = [];
+
+        // Lưu từng ảnh (bỏ qua phần tử rỗng)
         if ($request->hasFile('photos')) {
             foreach ($request->file('photos') as $file) {
-                if ($file and $file->isValid()) {
-                    $mediaPaths.append($file->store('scheduled_media'));
+                if ($file && $file->isValid()) {
+                    // Lưu vào storage/app/scheduled_media
+                    $path = $file->store('scheduled_media');
+                    $mediaPaths[] = $path; // << đúng cú pháp PHP
                 }
             }
         }
 
-        ScheduledPost::create([
-            'page_id' => $pageId,
-            'page_name' => $page->name ?? null,
-            'message' => $request->input('message'),
-            'media_path' => null,
-            'media_paths' => $mediaPaths ?: null,
-            'media_type' => $mediaPaths and count($mediaPaths) > 1 ? 'album' : ( ($mediaPaths and count($mediaPaths)==1) ? 'photo': null ),
-            'timezone' => $request->input('timezone'),
-            'publish_at' => $dtUtc->format('Y-m-d H:i:s'),
-            'status' => 'queued',
+        // Convert thời gian người dùng chọn -> UTC
+        // Nếu submit ISO 8601 (chuẩn), Carbon parse trực tiếp:
+        $publishUtc = Carbon::parse(
+            $request->input('publish_at'),
+            $request->input('timezone')
+        )->utc();
+
+        // Nếu bạn submit "dd/mm/yyyy HH:ii" (không phải ISO), dùng:
+        // $publishUtc = Carbon::createFromFormat('d/m/Y H:i', $request->input('publish_at'), $request->input('timezone'))->utc();
+
+        // Xác định loại media
+        $mediaType = null;
+        if (count($mediaPaths) > 1) {
+            $mediaType = 'album';
+        } elseif (count($mediaPaths) === 1) {
+            $mediaType = 'photo';
+        }
+
+        $post = ScheduledPost::create([
+            'page_id'     => $request->input('page_id'),
+            'page_name'   => $request->input('page_name'),
+            'message'     => $request->input('message'),
+
+            // 1 ảnh -> media_path
+            'media_path'  => count($mediaPaths) === 1 ? $mediaPaths[0] : null,
+            // >=2 ảnh -> media_paths (json)
+            'media_paths' => count($mediaPaths) > 1  ? $mediaPaths : null,
+            'media_type'  => $mediaType,
+
+            'timezone'    => $request->input('timezone'),
+            'publish_at'  => $publishUtc, // lưu UTC
+
+            'status'      => 'queued', // queued|processing|published|failed|canceled
         ]);
 
-        return back()->with('status','Đã tạo lịch đăng.');
+        return redirect()->back()->with('success', 'Đã lưu lịch #' . $post->id);
     }
 
-    public function cancel(Request $request, int $id)
+    /**
+     * Hủy lịch (tuỳ luồng)
+     */
+    public function cancel(ScheduledPost $post)
     {
-        $sch = ScheduledPost::findOrFail($id);
-        if (!in_array($sch->status, ['queued','processing'])) {
-            return back()->with('status','Không thể hủy lịch ở trạng thái: '.$sch->status);
+        if (in_array($post->status, ['queued', 'processing'])) {
+            $post->status = 'canceled';
+            $post->save();
         }
-        $sch->status = 'canceled';
-        $sch->save();
-        return back()->with('status','Đã hủy lịch.');
+        return redirect()->back()->with('success', 'Đã hủy lịch #' . $post->id);
     }
 }

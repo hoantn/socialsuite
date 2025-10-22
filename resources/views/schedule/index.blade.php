@@ -48,7 +48,7 @@
           <textarea name="message" rows="4" placeholder="Viết nội dung..."></textarea>
 
           <div class="small" style="margin:10px 0 6px">Ảnh (tối đa 5, mỗi ảnh ≤ 5MB)</div>
-          <input type="file" name="photos[]" accept=".jpg,.jpeg,.png,.gif" multiple />
+          <input type="file" name="photos[]" multiple accept="image/*">
 
           <div class="small" style="margin:10px 0 6px">Múi giờ</div>
           <select name="timezone">
