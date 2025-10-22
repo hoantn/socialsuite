@@ -14,14 +14,16 @@ class ScheduledPostController extends Controller
      * Trang tạo lịch đăng.
      * - Truyền $pages cho view (select Page)
      * - Truyền $scheduled để hiển thị danh sách lịch gần nhất
+     * - Truyền $tz (timezone mặc định của user hoặc UTC)
      */
     public function index(Request $request)
     {
+        // Lấy timezone người dùng (nếu có), fallback UTC
         $tz = $request->user() && method_exists($request->user(), 'timezone')
             ? ($request->user()->timezone ?? 'UTC')
             : 'UTC';
 
-        // Lấy danh sách Page. Nếu cần ràng buộc theo owner, có thể thêm where('owner_id', auth()->id()).
+        // Lấy danh sách Page (nếu muốn lọc theo owner, thêm where('owner_id', auth()->id()))
         $pages = DB::table('fb_pages')
             ->orderBy('name')
             ->get();
@@ -29,8 +31,13 @@ class ScheduledPostController extends Controller
         $scheduled = ScheduledPost::orderByDesc('id')->limit(15)->get();
 
         return view('schedule.index', [
-            'pages'           => $pages,
-            'scheduled'       => $scheduled,
+            'pages'     => $pages,
+            'scheduled' => $scheduled,
+
+            // Truyền đúng biến $tz vì view đang dùng $tz
+            'tz'        => $tz,
+
+            // Giữ thêm biến cũ nếu view khác có dùng
             'defaultTimezone' => $tz,
         ]);
     }
@@ -49,7 +56,7 @@ class ScheduledPostController extends Controller
             'page_name'  => ['nullable', 'string'],
             'message'    => ['nullable', 'string'],
             'timezone'   => ['required', 'string'],  // ví dụ: Asia/Ho_Chi_Minh
-            'publish_at' => ['required', 'date'],    // nếu submit ISO 8601 từ input datetime-local là OK
+            'publish_at' => ['required', 'date'],    // submit ISO 8601 từ datetime-local là OK
             'photos'     => ['nullable', 'array', 'max:5'],
             'photos.*'   => ['nullable', 'file', 'image', 'max:5120'], // 5MB
         ]);
@@ -68,14 +75,10 @@ class ScheduledPostController extends Controller
         }
 
         // Convert thời gian người dùng chọn -> UTC
-        // Nếu submit ISO 8601: Carbon::parse(..., timezone)->utc() xử lý được
         $publishUtc = Carbon::parse(
             $request->input('publish_at'),
             $request->input('timezone')
         )->utc();
-
-        // Nếu bạn submit dưới dạng custom "d/m/Y H:i", thay bằng:
-        // $publishUtc = Carbon::createFromFormat('d/m/Y H:i', $request->input('publish_at'), $request->input('timezone'))->utc();
 
         // Xác định loại media
         $mediaType = null;
@@ -97,7 +100,7 @@ class ScheduledPostController extends Controller
             'media_type'  => $mediaType,
 
             'timezone'    => $request->input('timezone'),
-            'publish_at'  => $publishUtc, // lưu UTC
+            'publish_at'  => $publishUtc, // LƯU UTC
 
             'status'      => 'queued', // queued|processing|published|failed|canceled
         ]);
